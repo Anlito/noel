@@ -1,31 +1,27 @@
 # Reprise — Lé Kdo 2 Noyel
 
-## Action technique en attente pour Thomas
+## Suppression des cadeaux : fonctionnement confirmé
 
-Note enregistrée le 27 octobre 2026, pour la reprise prévue le 28 octobre.
-À rappeler lors de la prochaine session technique sur le projet.
+Le 28 octobre 2026, Thomas indique avoir mis à jour la base de données et confirme
+que la suppression d'un cadeau personnel ou d'un enfant fonctionne.
+Le rappel d'activation de la suppression est donc clos. Ne pas lui redemander
+d'exécuter le script comme si cette intervention était toujours en attente.
 
-**La suppression des idées cadeaux nécessite encore une intervention Supabase.**
-Le code et la confirmation stylisée sont publiés, mais le script SQL n'a pas
-été exécuté par l'assistant sur la base de production. Son installation reste
-à vérifier par Thomas ; la personne chargée de l'UX ne gère pas cette opération.
+Cette confirmation vient de Thomas ; l'assistant n'a pas effectué les tests sur
+la base de production. Le nom exact des scripts exécutés n'a pas été précisé.
 
-1. Consulter `INSTALLATION-SUPPRESSION-CADEAUX.md`.
-2. Vérifier que les migrations enfants et partage sont déjà installées.
-3. Exécuter `migration-suppression-cadeaux.sql` dans Supabase → SQL Editor → Run.
-4. Vérifier les suppressions personnelles et celles des enfants par le parent
-   et un gestionnaire partagé ; contrôler les refus pour les autres comptes.
-5. Vérifier que les réservations restent secrètes pour leur destinataire.
-6. Mettre à jour cette note avec le résultat et la date d'exécution.
+## Vérifications non encore confirmées
 
-Ne pas relancer `schema.sql`. Le nouveau script maintient l'interdiction des
-suppression directes et utilise une fonction qui vérifie les droits, sans
-révéler si le cadeau était réservé.
+- Suppression d'un cadeau d'enfant depuis un compte gestionnaire partagé.
+- Modification d'un cadeau d'enfant, notamment par un gestionnaire partagé
+  (`migration-modification-cadeaux.sql` : installation non explicitement confirmée).
+- Refus des actions de gestion aux comptes non autorisés et confidentialité des
+  réservations pour leur destinataire après la mise à jour.
 
-Vérifier également `migration-modification-cadeaux.sql` si la modification des
-cadeaux d'enfants n'est pas encore activée (migration précédente, exécution non
-confirmée dans cette conversation).
+Ne pas relancer `schema.sql`. Les informations d'installation restent disponibles
+dans `INSTALLATION-SUPPRESSION-CADEAUX.md` pour référence historique.
 
-## Dernier ajustement UX
+## Derniers ajustements UX publiés
 
-Retrait du surtitre « On se retrouve » sur la page « Les repas de famille ».
+Accueil « Cher Père Noël… », champ « Trouver une liste », sous-titres raccourcis,
+message pour les listes vides, retrait du message de surprise de la liste personnelle.
