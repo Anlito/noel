@@ -1,7 +1,8 @@
 # Reprise du projet
 
 Lire `SUIVI.md` au début d'une nouvelle session sur ce projet.
-Lors de la prochaine reprise technique avec Thomas, rappeler l'action Supabase
-en attente pour activer la suppression des idées cadeaux. Ne pas considérer la
-migration comme exécutée sans vérification ou confirmation de son exécution.
-La personne qui travaille sur l'UX ne prend pas en charge cette opération.
+Thomas a confirmé le 28 octobre 2026 la mise à jour de la base et le bon fonctionnement
+de la suppression des cadeaux personnels et des cadeaux d'enfants.
+Ne plus rappeler cette opération comme une tâche en attente.
+Les vérifications non confirmées (gestionnaire partagé, modification, confidentialité)
+sont distinguées dans le suivi ; ne pas les considérer comme validées.
