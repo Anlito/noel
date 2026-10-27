@@ -5,7 +5,7 @@ returns void language plpgsql security definer set search_path='' as $$
 begin
  if not public.santa_is_organizer() then raise exception 'Organisateur requis'; end if;
  perform pg_advisory_xact_lock(75812026);
- delete from public.santa_entry_assignments;
+ delete from public.santa_entry_assignments where giver_id is not null;
 end $$;
 
 create or replace function public.santa_entry_replace_manual(p_pairs jsonb)
@@ -31,7 +31,7 @@ begin
   where not exists(select 1 from public.santa_entries e where e.id=p.giver_id)
   or not exists(select 1 from public.santa_entries e where e.id=p.recipient_id))
  then raise exception 'Chaque participant doit donner et recevoir une fois'; end if;
- delete from public.santa_entry_assignments;
+ delete from public.santa_entry_assignments where giver_id is not null;
  insert into public.santa_entry_assignments(giver_id,recipient_id)
  select giver_id,recipient_id from pg_temp.santa_replacement_pairs;
  return n;
@@ -48,7 +48,7 @@ begin
  n:=coalesce(array_length(ids,1),0);
  if n<2 then raise exception 'Au moins deux participants requis'; end if;
  shift_by:=1+floor(random()*(n-1))::integer;
- delete from public.santa_entry_assignments;
+ delete from public.santa_entry_assignments where giver_id is not null;
  for i in 1..n loop
   insert into public.santa_entry_assignments(giver_id,recipient_id)
   values(ids[i],ids[1+((i-1+shift_by)%n)]);
