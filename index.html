@@ -91,7 +91,7 @@ async function mealView(){
  const isAdmin=!!adminRes.data?.length,childRows=childAtt.data||[],ownKids=kids.filter(c=>c.parent_id===user.id);
  const name=id=>profiles.find(p=>p.id===id)?.display_name||'Membre';
  const dateText=m=>m.starts_at?new Date(m.starts_at).toLocaleString('fr-FR',{dateStyle:'full',timeStyle:'short'}):'Repas de Noël';
- $('view').innerHTML='<div class="meals-head"><div><span class="section-kicker">ON SE RETROUVE</span><h1>Les repas de famille</h1><p class="muted">Inscris-toi et choisis ce que tu souhaites apporter.</p></div></div>'
+ $('view').innerHTML='<div class="meals-head"><div><h1>Les repas de famille</h1><p class="muted">Inscris-toi et choisis ce que tu souhaites apporter.</p></div></div>'
  +(mealRes.error?'<p class="error">Pour ajouter des repas, active la migration SQL des repas personnalisables.</p>':'')
  +(isAdmin&&!mealRes.error?'<details class="meal-create"><summary>＋ Ajouter un repas</summary><form id="newMealForm"><label>Nom du repas<input name="title" maxlength="100" placeholder="Ex. Brunch du 27 décembre" required></label><label>Date et heure<input name="date" type="datetime-local" required></label><button type="submit">Créer le repas</button></form></details>':'')
  +(childAtt.error?'<p class="error">La présence des enfants nécessite la migration repas-enfants.</p>':'')
