@@ -53,3 +53,5 @@ button.action-remove:hover{background:#f3dade}
 .santa-organizer .santa-draw-actions{display:flex;flex-wrap:wrap;gap:12px;border-top:1px solid var(--line);padding-top:24px;margin-top:12px}
 .santa-draw-actions button{min-height:48px;margin:0;white-space:normal}
 @media(max-width:480px){.santa-organizer .santa-draw-actions{display:grid;grid-template-columns:1fr}.santa-participant button{flex-basis:120px}}
+#screen>article.meal-card{margin-top:24px!important;margin-bottom:24px!important}
+
