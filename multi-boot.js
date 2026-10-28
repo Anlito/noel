@@ -9,7 +9,7 @@
   if(error||!data?.enabled){document.getElementById('screen').textContent='Connexion temporairement indisponible. Recharge la page dans quelques instants.';return;}
   window.NOEL_STATUS=data;
   await new Promise((resolve,reject)=>{const avatars=document.createElement('script');avatars.src='avatars.js?v=2';avatars.onload=resolve;avatars.onerror=reject;document.body.append(avatars);});
-  const script=document.createElement('script');script.src='multi-app.js?v=collapsible-forms-20261028';script.onerror=()=>{document.getElementById('screen').textContent='Chargement impossible. Recharge la page.';};document.body.append(script);
+  const script=document.createElement('script');script.src='multi-app.js?v=auth-layout-20261028';script.onerror=()=>{document.getElementById('screen').textContent='Chargement impossible. Recharge la page.';};document.body.append(script);
  }
  boot().catch(()=>{document.getElementById('screen').textContent='Connexion indisponible. Recharge la page.';});
 })();

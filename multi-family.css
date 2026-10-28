@@ -62,3 +62,11 @@ button.action-remove:hover{background:#f3dade}
 .offerings-selector{max-width:580px;margin:24px 0}
 .offerings-selector select{display:block;width:100%;margin-top:8px;min-height:48px}
 .reservation-sharing{margin-top:28px}
+
+#screen .auth-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 24px;justify-content:stretch}
+.auth-actions button{width:100%;min-width:0;min-height:48px;margin:0;padding:12px 8px;white-space:normal;line-height:1.4}
+#screen .password-wrap{position:relative;display:block;margin:8px 0 16px}
+#screen .password-wrap input{display:block;width:100%;min-height:48px;margin:0;padding-right:56px}
+#screen .password-wrap button.eye{position:absolute;top:50%;right:4px;transform:translateY(-50%);display:grid;place-items:center;width:44px;height:44px;min-height:44px;min-width:44px;padding:0;margin:0;border:0;background:transparent;color:var(--pine);line-height:1}
+.password-wrap button.eye svg{display:block}
+.password-wrap button.eye:focus-visible{outline:2px solid var(--pine);outline-offset:-3px}
