@@ -21,3 +21,23 @@ header .topbar .menu-shell{display:flex;align-items:center;gap:12px;min-width:0}
 .child-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:min(100%,560px);margin-top:20px}.child-actions button{margin:0;min-height:48px;line-height:1.4;max-width:100%;white-space:normal}.child-actions .child-remove{grid-column:1/-1;justify-self:start;margin-top:4px;color:var(--wine);background:transparent;border:1px solid var(--line)}.child-actions .child-remove:hover{background:#fff0ee;border-color:#e5bbb9}.child-sharing{margin-top:20px;padding-top:12px;border-top:1px solid var(--line)}.child-sharing summary{cursor:pointer;min-height:44px;padding:10px 0;line-height:1.5}.child-share-members{max-width:560px}.child-share-member{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid var(--line)}.child-share-member span{min-width:0;overflow-wrap:anywhere}.child-share-member button{flex:0 0 auto;min-width:132px;min-height:48px;margin:0}@media(max-width:520px){.child-actions{grid-template-columns:1fr}.child-actions .child-remove{justify-self:stretch;margin-top:8px}}
 
 .reservation-share-members>.reservation-share-member{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0;padding:16px 0;border-top:1px solid var(--line)}.reservation-share-person{display:flex;align-items:center;gap:12px;min-width:0;flex:1}.reservation-share-avatar{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border-radius:50%;background:#f4efe6;font-size:22px}.reservation-share-name{min-width:0;overflow-wrap:anywhere;font-weight:600;line-height:1.4}.reservation-share-name small{display:block;color:var(--pine);font-weight:400;font-size:.8rem;margin-top:4px}.reservation-share-member button{width:176px;min-width:132px;max-width:60%;flex:0 0 auto;min-height:48px;margin:0;white-space:normal;line-height:1.4}@media(max-width:380px){.reservation-share-members>.reservation-share-member{gap:12px}.reservation-share-person{gap:8px}.reservation-share-avatar{width:30px;height:30px;flex-basis:30px;font-size:18px}.reservation-share-member button{width:132px;min-width:120px}}
+
+.meal-admin-actions,.meal-attendance-actions{display:flex;flex-wrap:wrap;gap:12px}
+.meal-admin-actions{margin:16px 0 20px}
+.meal-attendance-actions{margin:20px 0 28px}
+.meal-admin-actions button,.meal-attendance-actions button,.meal-contribution button{min-height:48px;margin:0;white-space:normal;line-height:1.4}
+.meal-admin-actions button:last-child{color:var(--wine);border:1px solid #e5cbd0}
+.meal-card h3{margin:0 0 12px}
+.meal-contribution{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;border-top:1px solid var(--line)}
+.meal-contribution-info{display:flex;flex-direction:column;gap:6px;min-width:0;overflow-wrap:anywhere}
+.meal-contribution-info span{font-size:.9rem}
+.meal-contribution button{flex:0 0 156px;max-width:55%}
+@media(max-width:480px){.meal-admin-actions,.meal-attendance-actions{display:grid;grid-template-columns:1fr}.meal-contribution button{flex-basis:132px}}
+.avatar-picker{margin:12px 0 24px;grid-template-columns:repeat(6,minmax(0,1fr))}
+.avatar-picker button{display:grid;place-items:center;min-width:0;min-height:52px;padding:10px;margin:0;background:#fff;color:#244337;border:1px solid #ded8ce;border-radius:12px;overflow:hidden}
+.avatar-picker button:hover{background:#fff;border-color:#245a49}
+.avatar-picker button[aria-pressed=true]{background:#fff;border:2px solid #245a49;outline:none;box-shadow:0 0 0 1px #245a49}
+.avatar-picker button:focus-visible{outline:3px solid #c99c5d;outline-offset:2px}
+.avatar-picker .avatar-image{display:block;width:30px;height:30px;max-width:100%;margin:0;object-fit:contain}
+#profile>button[type=submit],#childEdit>button[type=submit]{min-height:48px;margin-top:0}
+@media(max-width:700px){.avatar-picker{grid-template-columns:repeat(5,minmax(0,1fr))}}
