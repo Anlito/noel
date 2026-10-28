@@ -55,3 +55,10 @@ button.action-remove:hover{background:#f3dade}
 @media(max-width:480px){.santa-organizer .santa-draw-actions{display:grid;grid-template-columns:1fr}.santa-participant button{flex-basis:120px}}
 #screen>article.meal-card{margin-top:24px!important;margin-bottom:24px!important}
 
+
+.add-form{margin:24px 0}
+.add-form summary{cursor:pointer;font-family:Georgia,serif;font-size:1.45rem;font-weight:700;color:var(--forest);min-height:44px;align-content:center}
+.add-form form{margin-top:20px}
+.offerings-selector{max-width:580px;margin:24px 0}
+.offerings-selector select{display:block;width:100%;margin-top:8px;min-height:48px}
+.reservation-sharing{margin-top:28px}
