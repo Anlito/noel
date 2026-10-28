@@ -36,7 +36,7 @@ const {chromium}=require('playwright');
    await context.route('https://cdn.jsdelivr.net/**',r=>r.fulfill({contentType:'application/javascript',body:mock}));
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url);await page.getByRole('heading',{name:'Cher Père Noël…'}).waitFor();
    assert.equal(await page.locator('.family-ornament-photo').isVisible(),true);
-   await page.getByRole('button',{name:'Menu',exact:true}).click();assert.equal(await page.locator('#familySwitch details').getAttribute('open'),null);
+   await page.getByRole('button',{name:'Menu',exact:true}).click();assert.equal(await page.locator('#familySwitch details').getAttribute('open'),null);assert.equal(await page.locator('#accountMenuAvatar img').getAttribute('src'),await page.locator('#myAvatar img').getAttribute('src'));
    await page.locator('#familySwitch summary').click();await page.getByRole('button',{name:'Les cousins',exact:true}).click();await page.waitForFunction(()=>document.body.dataset.palette==='berry');
    assert.equal(await page.locator('.family-ornament-photo').isVisible(),false);assert.equal(await page.locator('.neutral-ornament').count(),1);
    assert.equal(await page.locator('#adminAccountsTab').isVisible(),false);assert.equal(await page.locator('#activeFamily').textContent(),'Les cousins');assert((await page.locator('.eyebrow').textContent()).includes('LES COUSINS'));assert.equal(await page.locator('#familyLabel').count(),0);

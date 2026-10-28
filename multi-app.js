@@ -23,7 +23,7 @@
   document.querySelector('.family-ornament-photo').classList.toggle('hidden',!user||family?.ornament!=='photo');
   document.querySelector('.eyebrow').textContent=family?'✦ '+family.name.toLocaleUpperCase('fr-FR')+' · '+(family.year||new Date().getFullYear())+' ✦':'✦ NOËL EN FAMILLE ✦';
   if(!user){$('activeFamily').textContent='';return;}
-  $('who').textContent=boot.account.name;$('myAvatar').innerHTML=avatar(boot.account.avatar);$('activeFamily').textContent=family?.name||'À toi de choisir ta famille';
+  $('who').textContent=boot.account.name;$('myAvatar').innerHTML=avatar(boot.account.avatar);$('accountMenuAvatar').innerHTML=avatar(boot.account.avatar);$('activeFamily').textContent=family?.name||'À toi de choisir ta famille';
   $('adminAccountsTab').classList.toggle('hidden',family?.role!=='admin');
   $('familySwitch').innerHTML=boot.families.length>1?'<details><summary>Changer de famille · '+esc(family.name)+'</summary>'+boot.families.map(f=>'<button class="'+(f.id===family.id?'family-active':'ghost')+'" data-family="'+f.id+'">'+esc(f.name)+'</button>').join('')+'</details>':family?'<p class="family-title">'+esc(family.name)+'</p>':'';
   $('familySwitch').querySelectorAll('[data-family]').forEach(b=>b.onclick=()=>busy(b,async()=>{closeMenu();await refresh(b.dataset.family);await go('home');}));
