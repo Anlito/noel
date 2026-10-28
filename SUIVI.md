@@ -9,6 +9,8 @@ sont préparées et testées. Leur exécution par Thomas reste à confirmer. Ne 
 les codes courts et le réglage d’année comme activés avant cette confirmation.
 Le site reste compatible avec la base avant ces deux migrations ; il détecte leurs capacités
 via mf_status. Le nom du bandeau et le retrait du nom à côté du menu sont des changements web.
+Le doublon du nom de famille sous « Cher Père Noël… », absent de l’ancien accueil,
+est également retiré à la demande de Thomas.
 Les codes existants sont convertis sans recréer les familles ni modifier les listes/comptes.
 L’année concerne l’affichage de chaque famille ; sa modification n’efface aucun cadeau ni tirage.
 
