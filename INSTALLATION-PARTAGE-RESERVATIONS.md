@@ -29,8 +29,8 @@ confirmé leur bon fonctionnement le 28 octobre.
 ## Installation sur téléphone ou tablette
 
 - Icône de cadeau et manifeste adaptés au chemin `/noel/` de GitHub Pages.
-- Bouton « Installer l'application » dans le menu, proposition discrète sur les
-  appareils compatibles, fermeture mémorisée pendant 30 jours sur cet appareil.
+- Bouton « Installer l'application » dans le menu principal uniquement, sans
+  proposition ni bandeau sur la page d'accueil.
 - Le navigateur ouvre son dialogue d'installation lorsqu'il le permet ; sinon
   une aide indique comment ajouter l'application à l'écran d'accueil.
 - Sur iPhone/iPad, l'installation passe par le menu de partage du navigateur.

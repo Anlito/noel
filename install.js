@@ -3,10 +3,8 @@
  const $=id=>document.getElementById(id),mode=matchMedia('(display-mode: standalone)');
  const isStandalone=()=>installed||mode.matches||navigator.standalone===true;
  const isAppleMobile=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
- const dismissed=()=>{try{return Date.now()-Number(localStorage.getItem('noel-install-dismissed')||0)<30*24*60*60*1000}catch{return false}};
  function refresh(){
   $('installApp').classList.toggle('hidden',isStandalone());
-  $('installBanner').classList.toggle('hidden',isStandalone()||dismissed()||!matchMedia('(max-width: 1024px)').matches||(!pendingPrompt&&!isAppleMobile()));
  }
  window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();pendingPrompt=event;refresh()});
  window.addEventListener('appinstalled',()=>{installed=true;pendingPrompt=null;refresh()});
@@ -22,8 +20,7 @@
    :'Dans le menu de ton navigateur, cherche « Installer Lé Kdo 2 Noyel » ou « Installer cette page comme application ». Tu peux aussi utiliser l’icône d’installation à droite de la barre d’adresse, si elle est proposée.';
   $('installDialog').showModal();
  }
- $('installApp').onclick=install;$('installBannerAction').onclick=install;
- $('dismissInstall').onclick=()=>{try{localStorage.setItem('noel-install-dismissed',String(Date.now()))}catch{}$('installBanner').classList.add('hidden')};
+ $('installApp').onclick=install;
  refresh();
  if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'}).catch(error=>console.warn('Installation indisponible :',error.message)));
 })();
