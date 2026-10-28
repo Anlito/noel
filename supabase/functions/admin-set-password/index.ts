@@ -23,6 +23,8 @@ Deno.serve(async (req) => {
   const { data: auth, error: authError } = await caller.auth.getUser();
   if (authError || !auth.user) return reply(401, "Session invalide");
   const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  const {data:state,error:stateError}=await admin.rpc("mf_status");
+  if(state?.enabled || (stateError && !["PGRST202","42883"].includes(stateError.code)))return reply(403,"Utilise la récupération par e-mail ou contacte le support. Un administrateur de famille ne peut pas modifier le code d'un compte.");
   const { data: allowed, error: accessError } = await admin.from("santa_admins").select("user_id").eq("user_id", auth.user.id).maybeSingle();
   if (accessError || !allowed) return reply(403, "Réservé au super-administrateur");
   let payload: { user_id?: string; password?: string };

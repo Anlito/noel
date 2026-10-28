@@ -1,3 +1,4 @@
+import { v2Auth } from "./v2.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json"};
 const reply=(status:number,message:string,extra:Record<string,unknown>={})=>new Response(JSON.stringify({message,...extra}),{status,headers:cors});
@@ -7,11 +8,15 @@ Deno.serve(async req=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
  if(req.method!=="POST")return reply(405,"Méthode non autorisée");
  const url=Deno.env.get("SUPABASE_URL"),anon=Deno.env.get("SUPABASE_ANON_KEY"),service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),invitation=Deno.env.get("FAMILY_INVITE_CODE");
- if(!url||!anon||!service||!invitation)return reply(503,"Configuration de l'accès familial incomplète");
+ if(!url||!anon||!service)return reply(503,"Configuration de l'accès familial incomplète");
  let body:Record<string,unknown>;try{body=await req.json()}catch{return reply(400,"Requête invalide")}
  const action=body.action,firstName=typeof body.name==="string"?body.name.trim():"",code=typeof body.code==="string"?body.code:"";
  if(!validName(firstName)||code.length<8||code.length>128)return reply(400,"Prénom invalide ou code personnel trop court (8 caractères minimum)");
  const admin=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
+ const {data:state,error:stateError}=await admin.rpc("mf_status");
+ if(!stateError&&state?.enabled){try{return await v2Auth(req,body,admin,url,anon,cors)}catch{return reply(503,"Connexion temporairement indisponible")}}
+ if(stateError&&stateError.code!=="PGRST202"&&stateError.code!=="42883")return reply(503,"Connexion temporairement indisponible");
+ if(!invitation)return reply(503,"Configuration de l'accès familial incomplète");
  const {data:profiles,error:searchError}=await admin.from("profiles").select("id,display_name").ilike("display_name",firstName);
  if(searchError)return reply(500,"Impossible de rechercher le membre");
  const matching=(profiles||[]).filter(p=>normalize(p.display_name)===normalize(firstName));

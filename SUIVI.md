@@ -1,5 +1,26 @@
 # Reprise — Lé Kdo 2 Noyel
 
+## Évolution multi-familles — 28 octobre 2026
+
+Implémentation préparée avec listes adultes/enfants communes, publication explicite
+par famille, réservation globale et anonymat extérieur, rôles et invitations par famille,
+repas et Secret Santa cloisonnés, thèmes neutres et récupération par e-mail vérifié.
+Les comptes et codes personnels historiques restent les mêmes ; le prénom historique
+devient l’identifiant stable, distinct du prénom affiché modifiable.
+
+IMPORTANT : la base Supabase de production n’a pas été modifiée par l’assistant.
+La publication du code ne vaut pas activation : l’accueil conserve l’application
+historique dans `legacy.html` tant que `mf_status().enabled` n’est pas vrai.
+Voir `INSTALLATION-MULTIFAMILLES.md` : préparation SQL, déploiement des trois fonctions
+Edge et configuration des e-mails, répétition sur copie, puis activation transactionnelle.
+Ne pas exécuter l’activation avant ces étapes. Ne pas simplement désactiver le drapeau
+après la bascule : les écritures nouvelles doivent être réconciliées pour un retour arrière.
+
+Tests locaux : fonctions SQL réelles sur PostgreSQL embarqué (PGlite), parcours navigateur
+sur 390/820/1180/1440 pixels avec sessions simulées, fonctions Edge avec Auth et mail simulés.
+Les tests de production, le comportement réel Supabase Auth et la réception des e-mails
+restent à valider sur copie avant activation.
+
 ## Suppression des cadeaux : fonctionnement confirmé
 
 Le 28 octobre 2026, Thomas indique avoir mis à jour la base de données et confirme

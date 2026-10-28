@@ -1,0 +1,9 @@
+[functions.family-auth]
+verify_jwt = false
+
+# This function validates JWTs itself for email changes; recovery uses one-use tokens.
+[functions.family-account]
+verify_jwt = false
+
+[functions.admin-set-password]
+verify_jwt = true

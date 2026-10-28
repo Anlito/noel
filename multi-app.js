@@ -1,0 +1,177 @@
+/* Multi-family UI. All data and permissions come from the scoped mf_* RPCs. */
+(()=>{'use strict';
+ const db=window.noelDB,$=id=>document.getElementById(id),screen=$('screen');
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const avatar=a=>window.NOEL_AVATARS[a]?'<img class="avatar-image" alt="" src="data:image/svg+xml;base64,'+NOEL_AVATARS[a]+'">':'🎅';
+ const check=(name,label,checked=false,value='')=>'<label class="check-row"><input type="checkbox" name="'+name+'" value="'+esc(value)+'" '+(checked?'checked':'')+'>'+esc(label)+'</label>';
+ let user=null,boot=null,family=null,context=null,page='home',selected=null,sharedOwner=null,epoch=0,signup=false;
+ let actions={},forms={};
+ const action=(name,fn)=>{actions[name]=fn;return 'data-action="'+name+'"';};
+ const button=(label,name,fn,cls='secondary')=>'<button type="button" class="'+cls+'" '+action(name,fn)+'>'+label+'</button>';
+ const rpc=async(name,args)=>{const {data,error}=await db.rpc(name,args);if(error||data?.error)throw Error(error?.message||data.error);return data;};
+ const read=(kind,id=null)=>rpc('mf_read',{p_kind:kind,p_family:family?.id||null,p_id:id});
+ const write=(act,id=null,data={})=>rpc('mf_write',{p_action:act,p_family:family?.id||null,p_id:id,p_data:data});
+ const status=(message,error=false)=>{$('status').textContent=message;$('status').className=error?'error':'';};
+ async function busy(element,fn){if(element)element.disabled=true;try{await fn()}catch(e){status(e.message||'Action impossible.',true);$('status').scrollIntoView({block:'nearest'});}finally{if(element)element.disabled=false;}}
+ function confirmAction(title,text){return new Promise(resolve=>{const d=$('confirmDialog');$('confirmTitle').textContent=title;$('confirmText').textContent=text;d.returnValue='cancel';d.addEventListener('close',()=>resolve(d.returnValue==='yes'),{once:true});d.showModal();});}
+ function closeMenu(){$('navigationDialog').close();$('menuToggle').setAttribute('aria-expanded','false');document.body.classList.remove('navigation-open');}
+ function closeProfile(){$('profileMenu').classList.add('hidden');$('profileToggle').setAttribute('aria-expanded','false');}
+ async function refresh(preferred){boot=await read('bootstrap');const saved=localStorage.getItem('noel-family:'+user.id);family=boot.families.find(f=>f.id===(preferred||family?.id||saved))||boot.families[0]||null;if(family)localStorage.setItem('noel-family:'+user.id,family.id);context=family?await read('family'):null;chrome();}
+ function chrome(){
+  document.querySelector('.menu-shell').classList.toggle('hidden',!user);$('headerUser').classList.toggle('hidden',!user);$('familyLinks').classList.toggle('hidden',!user);
+  document.querySelector('.family-ornament-photo').classList.toggle('hidden',!user||family?.ornament!=='photo');
+  $('familyLabel').textContent=user?(family?.name||''):'';$('familyLabel').title=family?.name||'';
+  if(!user){$('activeFamily').textContent='';return;}
+  $('who').textContent=boot.account.name;$('myAvatar').innerHTML=avatar(boot.account.avatar);$('activeFamily').textContent=family?.name||'À toi de choisir ta famille';
+  $('adminAccountsTab').classList.toggle('hidden',family?.role!=='admin');
+  $('familySwitch').innerHTML=boot.families.length>1?'<details><summary>Changer de famille · '+esc(family.name)+'</summary>'+boot.families.map(f=>'<button class="'+(f.id===family.id?'family-active':'ghost')+'" data-family="'+f.id+'">'+esc(f.name)+'</button>').join('')+'</details>':family?'<p class="family-title">'+esc(family.name)+'</p>':'';
+  $('familySwitch').querySelectorAll('[data-family]').forEach(b=>b.onclick=()=>busy(b,async()=>{closeMenu();await refresh(b.dataset.family);await go('home');}));
+  document.body.dataset.palette=family?.palette||'forest';
+  const hero=document.querySelector('.hero');hero.querySelector('.neutral-ornament')?.remove();
+  hero.querySelector('.family-ornament-photo').classList.toggle('hidden',family?.ornament!=='photo');
+  if(family&&family.ornament!=='photo'){const ornament=document.createElement('div');ornament.className='neutral-ornament';ornament.dataset.style=family.ornament;ornament.setAttribute('aria-hidden','true');ornament.innerHTML='<span>'+(family.ornament==='snow'?'❄':family.ornament==='ribbon'?'✦':'✧')+'</span>';hero.prepend(ornament);}
+ }
+ async function go(next,id=null){page=next;selected=id;closeMenu();closeProfile();status('');await render();}
+ function heading(title,description=''){return (page!=='home'?button('← Accueil','back',()=>go('home'),'home-back ghost'):'')+'<h1>'+esc(title)+'</h1>'+(description?'<p class="muted">'+esc(description)+'</p>':'');}
+ function bind(){
+  screen.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>busy(b,()=>actions[b.dataset.action]?.(b)));
+  screen.querySelectorAll('form[id]').forEach(f=>f.onsubmit=e=>{e.preventDefault();busy(f.querySelector('[type=submit]')||f.querySelector('button'),()=>forms[f.id]?.(new FormData(f),f));});
+  screen.querySelectorAll('.description-toggle').forEach(b=>{const p=b.previousElementSibling;b.classList.toggle('hidden',p.scrollHeight<=p.clientHeight+1);b.onclick=()=>{const open=b.getAttribute('aria-expanded')!=='true';b.setAttribute('aria-expanded',open);p.classList.toggle('expanded',open);b.textContent=open?'Voir moins':'Voir plus';};});
+  screen.querySelectorAll('[data-eye]').forEach(b=>b.onclick=()=>{const input=$(b.dataset.eye);const show=input.type==='password';input.type=show?'text':'password';b.setAttribute('aria-label',show?'Masquer le code':'Afficher le code');b.setAttribute('aria-pressed',show);});
+ }
+ async function render(){
+  const ticket=++epoch;actions={};forms={};screen.setAttribute('aria-busy','true');
+  document.querySelector('.hero').classList.toggle('hidden',!!user&&page!=='home');
+  try{
+   let html;
+   if(page==='recover-confirm')html=recoverConfirm();
+   else if(!user)html=authView();
+   else if(!family&&!['create','join','account'].includes(page)){page='join';html=joinView();}
+   else if(page==='home')html=homeView();
+   else if(page==='join')html=joinView();
+   else if(page==='create')html=createView();
+   else if(page==='account')html=accountView();
+   else if(page==='mine'){selected=boot.lists.find(x=>!x.child_id&&x.owner)?.id;page='list';html=await listView();}
+   else if(page==='list')html=await listView();
+   else if(page==='children')html=childrenView();
+   else if(page==='offerings')html=await offeringsView();
+   else if(page==='family-admin')html=await adminView();
+   else if(page==='admin-gifts')html=await adminGiftsView();
+   else if(page==='meals')html=await mealsView();
+   else if(page==='santa')html=await santaView();
+   else html=homeView();
+   if(ticket!==epoch)return;screen.innerHTML=html;bind();
+  }catch(e){if(ticket===epoch){screen.innerHTML=heading('Chargement impossible')+'<p class="error">'+esc(e.message)+'</p>';bind();}}
+  finally{if(ticket===epoch)screen.removeAttribute('aria-busy');}
+ }
+ const password=(id,label='Code personnel')=>'<label for="'+id+'">'+label+'</label><div class="password-wrap"><input id="'+id+'" name="'+id+'" type="password" minlength="8" maxlength="128" required autocomplete="'+(signup?'new-password':'current-password')+'"><button type="button" class="eye" data-eye="'+id+'" aria-label="Afficher le code">👁</button></div>';
+ function authView(){
+  forms.login=async data=>{
+   if(signup&&data.get('secret')!==data.get('repeat'))throw Error('Les deux codes ne correspondent pas.');
+   const {data:result,error}=await db.functions.invoke('family-auth',{body:{action:signup?'signup':'login',name:data.get('login'),display_name:data.get('name'),code:data.get('secret')}});
+   if(error||!result?.session&&!signup)throw Error(result?.message||'Connexion impossible. Vérifie ton identifiant et ton code personnel.');
+   if(signup){signup=false;await render();status(result.message);return;}
+   const session=await db.auth.setSession(result.session);if(session.error)throw session.error;user=session.data.user;await refresh();page='home';await render();
+  };
+  return '<section class="panel account-form"><div class="auth-actions">'+button('Connexion','loginMode',()=>{signup=false;return render();})+button('Créer un compte','signupMode',()=>{signup=true;return render();},'ghost')+'</div><h1>'+(signup?'Créer mon compte':'Connexion')+'</h1><p>'+ (signup?'Un seul compte pour toutes tes familles.':'Ton prénom habituel reste ton identifiant de connexion.')+'</p><form id="login"><label>Identifiant<input name="login" autocomplete="username" required maxlength="60" placeholder="'+(signup?'Ex. thomas.dupont':'Ton identifiant ou ton prénom habituel')+'"></label>'+(signup?'<label>Prénom affiché<input name="name" required maxlength="60" autocomplete="given-name"></label><p class="subtle">Identifiant unique : 3 à 40 lettres sans accent, chiffres, points ou tirets.</p>':'')+password('secret','Code personnel (8 caractères minimum)')+(signup?password('repeat','Confirmer le code'):'')+'<button type="submit">'+(signup?'Créer mon compte':'Se connecter')+'</button></form>'+(!signup?'<p>Vous n’avez pas encore de compte ? '+button('Créer votre compte','createAccount',()=>{signup=true;return render();},'text-link')+'</p>'+button('Code personnel oublié ?','forgot',forgotView,'text-link'):'')+'</section>';
+ }
+ async function forgotView(){
+  forms.forgot=async data=>{const {data:r,error}=await db.functions.invoke('family-account',{body:{action:'forgot',login:data.get('login')}});if(error)throw Error(r?.message||'Récupération indisponible. Contacte le support.');status(r.message);};
+  screen.innerHTML='<section class="panel account-form"><h1>Code personnel oublié ?</h1><p>Entre ton identifiant. Si tu as vérifié une adresse e-mail, tu recevras un lien.</p><form id="forgot"><label>Identifiant<input name="login" required maxlength="60" autocomplete="username"></label><button type="submit">Recevoir un lien</button></form><p>Pas d’adresse vérifiée ou identifiant oublié ? Contacte l’équipe qui gère le site pour vérifier ton identité et récupérer ton compte. Ne recrée pas de compte.</p>'+button('Retour à la connexion','backLogin',render,'ghost')+'</section>';bind();
+ }
+ const recovery=new URLSearchParams(location.hash.slice(1));
+ function recoverConfirm(){
+  const verify=recovery.get('account')==='verify';
+  forms.recovery=async data=>{
+   if(!verify&&data.get('newSecret')!==data.get('newRepeat'))throw Error('Les deux codes ne correspondent pas.');
+   const {data:r,error}=await db.functions.invoke('family-account',{body:{action:'confirm',purpose:recovery.get('account'),id:recovery.get('id'),token:recovery.get('token'),password:data.get('newSecret')}});
+   if(error)throw Error(r?.message||'Lien expiré ou invalide. Demande un nouveau lien.');
+   recovery.delete('token');history.replaceState(null,'',location.pathname+location.search);if(!verify){await db.auth.signOut();user=null;}else if(user)await refresh();page=user?'account':'home';await render();status(r.message);
+  };
+  return '<section class="panel account-form"><h1>'+(verify?'Vérifier mon adresse':'Choisir un nouveau code personnel')+'</h1><form id="recovery">'+(verify?'<p>Confirme cette adresse pour pouvoir récupérer ton compte.</p>':password('newSecret','Nouveau code personnel')+password('newRepeat','Confirmer le code'))+'<button type="submit">'+(verify?'Vérifier mon adresse':'Enregistrer le nouveau code')+'</button></form></section>';
+ }
+ function homeView(){
+  const mine=boot.lists,others=context.lists.filter(l=>!l.manage);
+  const cards=lists=>'<div class="people-grid">'+lists.map(l=>'<button type="button" class="person-card" '+action('list-'+l.id,()=>go('list',l.id))+'><span class="avatar">'+avatar(l.avatar)+'</span><span class="person-name">'+esc(l.name)+'</span><span class="person-card-bottom"><span>'+l.count+' idée'+(l.count>1?'s':'')+'</span><span aria-hidden="true">›</span></span></button>').join('')+'</div>';
+  const draw=query=>{const q=query.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const filter=l=>l.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(q);return '<h2>Mes listes</h2><p class="muted">Ajoute des idées sur les listes que tu gères (toi, kids…)</p>'+cards(mine.filter(filter))+'<h2>Toutes les listes</h2><p class="muted">Découvre les listes et réserve des idées.</p>'+cards(others.filter(filter))+(others.length?'':'<p>Aucune autre liste partagée pour le moment.</p>');};
+  actions.searchBind=()=>{};
+  setTimeout(()=>{const input=$('familySearch');if(input)input.oninput=()=>{$('familyLists').innerHTML=draw(input.value);bind();};},0);
+  return heading('Cher Père Noël…')+'<span class="family-badge">'+esc(family.name)+'</span><label class="family-search">Trouver une liste<input type="search" id="familySearch" placeholder="Saisissez un prénom" autocomplete="off"></label><div id="familyLists">'+draw('')+'</div>';
+ }
+ function giftCard(g,controls){return '<article class="gift-card"><h2>'+esc(g.title)+'</h2>'+(g.description?'<div class="description-block"><p class="gift-description">'+esc(g.description)+'</p><button class="description-toggle ghost" aria-expanded="false">Voir plus</button></div>':'')+(/^https?:\/\//i.test(g.url)?'<p><a href="'+esc(g.url)+'" target="_blank" rel="noopener noreferrer">Lien boutique</a></p>':'')+'<div class="gift-actions">'+controls+'</div></article>';}
+ function giftFields(g={}){return '<label>Nom du cadeau<input name="title" required maxlength="120" value="'+esc(g.title)+'"></label><label>Description<textarea name="description" maxlength="1000">'+esc(g.description)+'</textarea></label><label>Lien boutique (facultatif)<input type="url" name="url" maxlength="2048" value="'+esc(g.url)+'"></label>';}
+ async function listView(){
+  const list=await read('list',selected);let editing=null;
+  forms.gift=async data=>{await write('gift-save',list.id,{gift_id:editing,title:data.get('title'),description:data.get('description'),url:data.get('url')});await refresh();await render();};
+  forms.visibility=async(data,form)=>{await write('publish',list.id,{families:data.getAll('families')});await refresh();await render();status('Familles mises à jour.');};
+  let html=heading(list.manage?(list.child_id?'Liste de '+list.name:'Ma liste de cadeaux'):'Liste de '+list.name);
+  if(list.owner){html+='<details class="panel list-sharing"><summary>Choisir les familles qui voient cette liste</summary><p>La même liste et les mêmes réservations sont communes aux familles sélectionnées.</p><form id="visibility">'+boot.families.map(f=>check('families',f.name,list.families.includes(f.id),f.id)).join('')+'<button type="submit">Enregistrer</button></form></details>';}
+  if(!list.manage)html+='<p class="gift-privacy-note">🎁 Surprise garantie ! Le destinataire ne voit pas les cadeaux réservés. Les réservations extérieures à cette famille restent anonymes.</p>';
+  if(list.manage)html+='<article><h2>Ajouter une idée</h2><form id="gift">'+giftFields()+'<button type="submit" id="giftSubmit">Ajouter l’idée</button></form></article>';
+  html+=list.gifts.map(g=>giftCard(g,list.manage?button('Modifier','edit-'+g.id,()=>{editing=g.id;const f=$('gift');for(const k of ['title','description','url'])f.elements[k].value=g[k];$('giftSubmit').textContent='Enregistrer';f.scrollIntoView({block:'center',behavior:'smooth'});})+button('Supprimer','delete-'+g.id,async()=>{if(await confirmAction('Supprimer l’idée ?',g.title)){await write('gift-delete',list.id,{gift_id:g.id});await refresh();await render();}},'ghost'):g.reserved?'<p class="tag">Déjà réservé · par '+esc(g.reserver)+'</p>'+(g.mine?button('Annuler ma réservation','release-'+g.id,async()=>{if(await confirmAction('Annuler la réservation ?',g.title)){await write('release',g.id);await render();}},'ghost'):''):button('Je prends ce cadeau','reserve-'+g.id,async()=>{await write('reserve',g.id);await render();}))).join('');
+  if(!list.gifts.length)html+='<article><h2>Pas d’idée, pas de chocolat !</h2><p>Aucune idée cadeau pour le moment'+(list.manage?' : ajoute ta première envie.':', rappelez-le-lui !')+'</p></article>';
+  return html;
+ }
+ function familyFields(){return '<label>Nom de la famille<input name="name" minlength="2" maxlength="60" required></label><div class="form-row"><label>Couleur<select name="palette"><option value="forest">Vert sapin</option><option value="berry">Rouge baie</option><option value="midnight">Bleu nuit</option></select></label><label>Boule de Noël<select name="ornament"><option value="stars">Étoiles dorées</option><option value="ribbon">Ruban rouge</option><option value="snow">Flocons blancs</option></select></label></div>';}
+ function createView(){
+  forms.createFamily=async data=>{const r=await write('create-family',null,{...Object.fromEntries(data),publish:data.get('publish')==='true'});await refresh(r.id);await go('family-admin');status('Ta famille est créée. Partage son code avec tes proches.');};
+  return heading('Créer une famille','Tu pourras partager son code avec tes proches.')+'<article class="account-form"><form id="createFamily">'+familyFields()+check('publish','Partager ma liste personnelle dans cette famille',true,'true')+'<button type="submit">Créer ma famille</button></form><p>Les listes de tes enfants restent privées jusqu’à ce que tu choisisses leurs familles.</p></article>';
+ }
+ function joinView(){
+  forms.joinFamily=async(data,form)=>{const code=data.get('code'),preview=await write('preview-family',null,{code});if(await confirmAction('Rejoindre '+preview.name+' ?','Tu gardes ton compte et tes listes actuelles.')){await write('join-family',null,{code,publish:form.elements.publish.checked});await refresh(preview.id);await go('home');status('Bienvenue dans '+preview.name+' !');}};
+  return heading('Rejoindre une famille','Demande son code à un administrateur de cette famille.')+'<article class="account-form"><form id="joinFamily"><label>Code famille<input name="code" required maxlength="80" autocomplete="off" placeholder="NOEL-…"></label>'+check('publish','Partager ma liste personnelle dans cette famille')+'<button type="submit">Vérifier le code</button></form><p>Tu choisiras séparément les familles qui voient les listes de tes enfants.</p>'+button('Créer une nouvelle famille','newFamily',()=>go('create'),'text-link')+'</article>';
+ }
+ function accountView(){
+  forms.profile=async(data,form)=>{await write('profile',null,{name:data.get('name'),avatar:form.dataset.avatar||boot.account.avatar});await refresh();await render();status('Profil enregistré.');};
+  forms.email=async data=>{const {data:r,error}=await db.functions.invoke('family-account',{body:{action:'set-email',email:data.get('email'),password:data.get('emailSecret')}});if(error)throw Error(r?.message||'Vérification indisponible. Contacte le support.');status(r.message);};
+  return heading('Mon compte')+'<article class="account-form"><p>Identifiant de connexion : <strong>'+esc(boot.account.login)+'</strong></p><p class="subtle">Changer ton prénom affiché ne change pas ton identifiant.</p><form id="profile"><label>Prénom affiché<input name="name" value="'+esc(boot.account.name)+'" required maxlength="60"></label><p>Mon avatar</p><div class="avatar-picker">'+Object.keys(NOEL_AVATARS).map((a,i)=>'<button type="button" aria-label="Choisir '+esc(a)+'" aria-pressed="'+(a===boot.account.avatar)+'" '+action('avatar-'+i,b=>{$('profile').dataset.avatar=a;screen.querySelectorAll('.avatar-picker button').forEach(x=>x.setAttribute('aria-pressed',x===b));})+'>'+avatar(a)+'</button>').join('')+'</div><button type="submit">Enregistrer mon profil</button></form></article><article class="account-form"><h2>Récupérer mon compte</h2><p>'+(boot.account.verified_at?'Adresse vérifiée : '+esc(boot.account.recovery_email):'Ajoute une adresse e-mail pour récupérer ton code personnel si tu l’oublies.')+'</p><form id="email"><label>Adresse e-mail<input name="email" type="email" required maxlength="254" autocomplete="email"></label>'+password('emailSecret','Ton code personnel actuel')+'<button type="submit">Vérifier cette adresse</button></form><p class="subtle">Un lien sera envoyé. L’adresse devient utilisable pour la récupération après confirmation.</p></article>';
+ }
+ function childrenView(){
+  forms.child=async data=>{const r=await write('child-create',null,{name:data.get('name')});await refresh();await go('list',r.id);};
+  const kids=boot.lists.filter(l=>l.child_id);
+  return heading('Mes enfants','Une seule liste par enfant, à partager avec les familles de ton choix.')+'<article><form id="child"><label>Prénom de l’enfant<input name="name" required maxlength="60"></label><button type="submit">Ajouter un enfant</button></form></article>'+kids.map(l=>'<article><h2>'+avatar(l.avatar)+' '+esc(l.name)+'</h2>'+button('Gérer sa liste','child-'+l.id,()=>go('list',l.id))+(l.owner?button('Modifier son profil','child-edit-'+l.id,()=>childEdit(l),'ghost')+button('Supprimer l’enfant','child-delete-'+l.id,async()=>{if(await confirmAction('Supprimer cet enfant ?', 'La liste de '+l.name+' sera supprimée dans toutes les familles.')){await write('child-delete',l.id);await refresh();await render();}},'ghost')+'<details><summary>Partager la gestion dans '+esc(family.name)+'</summary><p>Le gestionnaire peut modifier la liste commune et ne voit pas ses réservations.</p>'+context.members.filter(m=>m.id!==user.id).map(m=>{const enabled=context.managers.some(x=>x.list_id===l.id&&x.user_id===m.id);return '<p>'+esc(m.name)+' '+button(enabled?'Retirer l’accès':'Donner accès','manager-'+l.id+'-'+m.id,async()=>{await write('manager',l.id,{user_id:m.id,enabled:!enabled});await refresh();await render();},'ghost')+'</p>';}).join('')+'</details>':'<p class="muted">Liste partagée avec moi.</p>')+'</article>').join('');
+ }
+ async function childEdit(l){
+  forms.childEdit=async(data,form)=>{await write('child-edit',l.id,{name:data.get('name'),avatar:form.dataset.avatar||l.avatar});await refresh();await go('children');};
+  screen.innerHTML=heading('Profil de '+l.name)+'<article><form id="childEdit"><label>Prénom<input name="name" required maxlength="60" value="'+esc(l.name)+'"></label><div class="avatar-picker">'+Object.keys(NOEL_AVATARS).map((a,i)=>'<button type="button" aria-label="Choisir '+esc(a)+'" aria-pressed="'+(a===l.avatar)+'" '+action('childAvatar-'+i,b=>{$('childEdit').dataset.avatar=a;screen.querySelectorAll('.avatar-picker button').forEach(x=>x.setAttribute('aria-pressed',x===b));})+'>'+avatar(a)+'</button>').join('')+'</div><button type="submit">Enregistrer</button></form></article>';bind();
+ }
+ async function offeringsView(){
+  const owner=sharedOwner||user.id,own=owner===user.id,gifts=await read('offerings',owner);
+  const shares=context.shares.filter(s=>s.viewer_id===user.id);
+  let html=heading('Mes cadeaux à offrir','Toutes tes réservations, toutes familles confondues.');
+  html+='<div class="form-actions">'+button('Mes réservations','myOfferings',()=>{sharedOwner=null;return render();})+shares.map(s=>button('Réservations de '+esc(context.members.find(m=>m.id===s.owner_id)?.name||'Membre'),'offering-'+s.owner_id,()=>{sharedOwner=s.owner_id;return render();},'ghost')).join('')+'</div>';
+  if(!own)html+='<p class="private-note">Partage en lecture seule : tu vois uniquement les cadeaux des listes auxquelles tu as accès. Les cadeaux pour toi et les listes que tu gères restent cachés.</p>';
+  else html+='<details class="reservation-sharing"><summary>Partager mes réservations</summary><p>Choisis un membre de '+esc(family.name)+'. Il verra uniquement les listes auxquelles il a accès.</p>'+context.members.filter(m=>m.id!==user.id).map(m=>{const enabled=context.shares.some(s=>s.owner_id===user.id&&s.viewer_id===m.id);return '<p>'+esc(m.name)+' '+button(enabled?'Retirer le partage':'Partager','share-'+m.id,async()=>{await write('share',m.id,{enabled:!enabled});await refresh();await render();},'ghost')+'</p>';}).join('')+'</details>';
+  const grouped=new Map();for(const g of gifts){if(!grouped.has(g.recipient))grouped.set(g.recipient,[]);grouped.get(g.recipient).push(g);}for(const [recipient,rows] of grouped){html+='<section class="offering-group"><h2>Pour '+esc(recipient)+'</h2>'+rows.map(g=>g.private?'<article><p>Tu n’as plus accès à cette liste.</p>'+button('Annuler ma réservation','cancel-private-'+g.id,async()=>{if(await confirmAction('Annuler cette réservation ?','Le cadeau redeviendra disponible.')){await write('release',g.id);await render();}},'ghost')+'</article>':giftCard(g,own?button('Annuler ma réservation','cancel-'+g.id,async()=>{if(await confirmAction('Annuler cette réservation ?',g.title)){await write('release',g.id);await render();}},'ghost'):'<p class="muted">Réservé</p>')).join('')+'</section>';}
+  return html+(gifts.length?'':'<article><p>Aucune réservation à afficher.</p></article>');
+ }
+ async function adminView(){
+  const admin=await read('admin');
+  forms.settings=async data=>{await write('settings',null,Object.fromEntries(data));await refresh();await render();status('Famille mise à jour.');};
+  setTimeout(()=>{const f=$('settings');if(f){f.elements.name.value=family.name;f.elements.palette.value=family.palette;f.elements.ornament.value=family.ornament==='photo'?'stars':family.ornament;}},0);
+  return heading('Gérer ma famille',family.name)+button('Suivi des cadeaux','giftMonitoring',()=>go('admin-gifts'))+'<article><h2>Inviter mes proches</h2><p>Code famille : <strong id="familyCode">'+esc(admin.invite_code)+'</strong></p>'+button('Copier le code','copyCode',async()=>{await navigator.clipboard.writeText(admin.invite_code);status('Code copié.');})+'<p class="subtle">Ce code permet de rejoindre la famille. Partage-le uniquement avec tes proches.</p></article><article><h2>Personnaliser</h2><form id="settings">'+familyFields()+(family.ornament==='photo'?'<p>La boule photo de votre famille est conservée.</p>':'')+'<button type="submit">Enregistrer</button></form></article><h2>Les membres</h2>'+context.members.map(m=>'<article class="member-card"><div><strong>'+esc(m.name)+'</strong><p>'+ (m.role==='admin'?'Administrateur':'Membre')+(m.organizer?' · Organisateur Secret Santa':'')+'</p></div><div>'+button(m.role==='admin'?'Passer membre':'Nommer administrateur','role-'+m.id,async()=>{if(await confirmAction('Modifier le rôle de '+m.name+' ?','Ce changement concerne uniquement cette famille.')){await write('member',m.id,{role:m.role==='admin'?'member':'admin',organizer:m.organizer});await refresh();await render();}},'ghost')+button(m.organizer?'Retirer l’organisation':'Déléguer le Secret Santa','organizer-'+m.id,async()=>{await write('member',m.id,{role:m.role,organizer:!m.organizer});await refresh();await render();},'ghost')+button('Retirer de la famille','remove-'+m.id,async()=>{if(await confirmAction('Retirer '+m.name+' de cette famille ?','Son compte et ses listes dans les autres familles seront conservés.')){await write('member',m.id,{remove:true});await refresh();await go('home');}},'ghost')+'</div></article>').join('');
+ }
+ async function adminGiftsView(){const rows=await read('admin-gifts');return heading('Suivi des cadeaux','Les listes que tu gères restent masquées pour préserver la surprise.')+rows.map(g=>'<p>Pour '+esc(g.recipient)+'</p>'+giftCard(g,'<p>'+ (g.reserved?'Réservé par '+esc(g.reserver):'Disponible')+'</p>')).join('');}
+ const people=()=>[...context.members.map(m=>({...m,user_id:m.id})),...context.lists.filter(l=>l.child_id).map(l=>({id:l.child_id,child_id:l.child_id,name:l.name}))];
+ async function mealsView(){
+  let editingKey=null;const data=await read('meals'),members=people(),kids=boot.lists.filter(l=>l.child_id&&l.owner&&l.families.includes(family.id));
+  forms.meal=async data=>{const payload=Object.fromEntries(data);payload.key=editingKey;if(payload.starts_at)payload.starts_at=new Date(payload.starts_at).toISOString();await write('meal-save',null,payload);await render();};
+  return heading('Les repas de famille',family.name)+(family.role==='admin'?'<article><h2>Ajouter un repas</h2><form id="meal"><label>Titre<input name="title" required maxlength="100"></label><label>Date et heure<input name="starts_at" type="datetime-local"></label><button type="submit">Ajouter</button></form></article>':'')+data.meals.map((m,i)=>{const attendance=data.attendance.filter(a=>a.meal_key===m.key),attending=attendance.some(a=>a.user_id===user.id);return '<article><h2>'+esc(m.title)+'</h2>'+(family.role==='admin'?button('Modifier','editMeal-'+i,()=>{editingKey=m.key;const f=$('meal');f.elements.title.value=m.title;f.elements.starts_at.value=m.starts_at?new Date(new Date(m.starts_at)-new Date(m.starts_at).getTimezoneOffset()*60000).toISOString().slice(0,16):'';f.scrollIntoView({block:'center'});},'ghost')+button('Supprimer','deleteMeal-'+i,async()=>{if(await confirmAction('Supprimer ce repas ?',m.title)){await write('meal-delete',null,{key:m.key});await render();}},'ghost'):'')+(m.starts_at?'<p>'+esc(new Date(m.starts_at).toLocaleString('fr-FR'))+'</p>':'')+'<p>Présents : '+esc(attendance.map(a=>members.find(p=>a.child_id?p.child_id===a.child_id:p.user_id===a.user_id)?.name||'Membre').join(', ')||'Personne pour le moment')+'</p>'+button(attending?'Je ne viens plus':'Je participe','attend-'+i,async()=>{await write('attend',null,{key:m.key,enabled:!attending});await render();})+kids.map(k=>{const yes=attendance.some(a=>a.child_id===k.child_id);return button((yes?'Retirer ':'Ajouter ')+esc(k.name),'attend-'+i+'-'+k.id,async()=>{await write('attend',null,{key:m.key,child_id:k.child_id,enabled:!yes});await render();},'ghost');}).join('')+'<h3>Qui apporte quoi ?</h3>'+['Apéro','Entrée','Plat','Dessert'].map((category,j)=>{const c=data.contributions.filter(c=>c.meal_key===m.key&&c.category===category),mine=c.some(c=>c.user_id===user.id);return '<p>'+esc(category)+' : '+esc(c.map(c=>context.members.find(x=>x.id===c.user_id)?.name||'Membre').join(', ')||'À vous de jouer')+' '+button(mine?'Je n’apporte plus':'J’apporte','contribution-'+i+'-'+j,async()=>{await write('contribute',null,{key:m.key,category,enabled:!mine});await render();},'ghost')+'</p>';}).join('')+'</article>';}).join('');
+ }
+ async function santaView(){
+  const data=await read('santa'),roster=people(),name=e=>roster.find(p=>e?.child_id?p.child_id===e.child_id:p.user_id===e?.user_id)?.name||'Participant';
+  let html=heading('Secret Santa',family.name)+'<article><h2>Mon Secret Santa</h2>'+data.entries.filter(e=>e.user_id===user.id||boot.lists.some(l=>l.child_id===e.child_id&&l.owner)).map(e=>{const assignment=data.assignments.find(a=>a.giver_id===e.id);return '<p>'+esc(name(e))+' : '+(assignment?'offre à <strong>'+esc(name(data.entries.find(x=>x.id===assignment.recipient_id)))+'</strong>':'en attente du tirage')+'</p>';}).join('')+'</article>';
+  if(!data.organizer)return html;
+  html+='<article><h2>Organiser le tirage</h2><p>'+data.entries.length+' participant(s) · '+(data.drawn?'tirage effectué':'tirage à préparer')+'</p>'+roster.map((p,i)=>{const enabled=data.entries.some(e=>p.child_id?e.child_id===p.child_id:e.user_id===p.user_id);return '<p>'+esc(p.name)+' '+(data.drawn?(enabled?'✓':''):button(enabled?'Retirer':'Ajouter','santa-person-'+i,async()=>{await write('santa-entry',p.child_id?null:p.user_id,{child_id:p.child_id,enabled:!enabled});await render();},'ghost'))+'</p>';}).join('')+'<div class="form-actions">'+button(data.drawn?'Refaire le tirage':'Tirage aléatoire','draw',async()=>{if(await confirmAction('Valider le tirage ?',data.drawn?'Les attributions existantes seront remplacées.':'Chaque participant recevra un destinataire.')){await write('santa-draw');await render();}})+button('Attributions manuelles','manual',async()=>{const pairs=data.drawn?await read('santa-admin'):[];forms.manual=async data=>{const pairs=Array.from(data,([giver,recipient])=>({giver,recipient}));if(await confirmAction('Enregistrer ces attributions ?','Les participants devront consulter leur destinataire.')){await write('santa-manual',null,{pairs});await render();}};$('manualArea').innerHTML='<form id="manual">'+data.entries.map(e=>'<label>'+esc(name(e))+' offre à<select name="'+e.id+'" required><option value="">Choisir</option>'+data.entries.filter(x=>x.id!==e.id).map(x=>'<option value="'+x.id+'" '+(pairs.some(a=>a.giver_id===e.id&&a.recipient_id===x.id)?'selected':'')+'>'+esc(name(x))+'</option>').join('')+'</select></label>').join('')+'<button type="submit">Enregistrer</button></form>';bind();},'ghost')+(data.drawn?button('Réinitialiser','reset',async()=>{if(await confirmAction('Réinitialiser le tirage ?','Les participants resteront sélectionnés.')){await write('santa-reset');await render();}},'ghost'):'')+'</div><div id="manualArea"></div></article>';return html;
+ }
+ $('menuToggle').onclick=()=>{closeProfile();$('navigationDialog').showModal();$('menuToggle').setAttribute('aria-expanded','true');document.body.classList.add('navigation-open');};$('closeNavigation').onclick=closeMenu;
+ $('navigationDialog').addEventListener('close',()=>{$('menuToggle').setAttribute('aria-expanded','false');document.body.classList.remove('navigation-open');});
+ $('profileToggle').onclick=()=>{const open=$('profileMenu').classList.contains('hidden');$('profileMenu').classList.toggle('hidden',!open);$('profileToggle').setAttribute('aria-expanded',open);};
+ document.addEventListener('click',e=>{if(!e.target.closest('.header-user'))closeProfile();});
+ $('changeAvatar').textContent='Mon compte';$('changeAvatar').onclick=()=>go('account');
+ $('logout').onclick=()=>busy($('logout'),async()=>{await db.auth.signOut();user=null;boot=null;family=null;context=null;sharedOwner=null;closeMenu();closeProfile();chrome();await go('home');});
+ document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>busy(b,()=>{sharedOwner=null;return go(b.dataset.tab);}));
+ window.addEventListener('resize',()=>screen.querySelectorAll('.description-toggle').forEach(b=>{if(b.getAttribute('aria-expanded')!=='true')b.classList.toggle('hidden',b.previousElementSibling.scrollHeight<=b.previousElementSibling.clientHeight+1);}));
+ async function start(){const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(user)await refresh();else chrome();if(recovery.has('account'))page='recover-confirm';await render();const install=document.createElement('script');install.src='install.js?v=2';document.body.append(install);const photo=document.querySelector('.family-ornament-photo');if(photo&&!photo.classList.contains('hidden')){await photo.decode().catch(()=>{});photo.classList.add('is-arriving');}}
+ start().catch(e=>status(e.message,true));
+})();

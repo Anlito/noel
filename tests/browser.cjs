@@ -1,0 +1,78 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
+const {chromium}=require('playwright');
+(async()=>{
+ const fixture=await require('./fixture.cjs')(),{db,id,as,read,write}=fixture;
+ await as(1);let initial=await read('bootstrap');const original=initial.families[0].id,personal=initial.lists.find(l=>!l.child_id).id;
+ const second=(await write('create-family',null,null,{name:'Les cousins',palette:'berry',ornament:'snow',publish:true})).id;
+ const invite=(await read('admin',second)).invite_code;await as(3);await write('join-family',null,null,{code:invite,publish:true});
+ await as(1);await write('gift-save',original,personal,{title:'Un cadeau avec une description',description:'Une longue description qui donne toutes les précisions pour bien choisir le cadeau. '.repeat(10),url:'https://example.com/cadeau'});
+ const root=path.resolve(__dirname,'..'),shots=process.env.NOEL_SCREENSHOTS||path.join(root,'test-artifacts');fs.mkdirSync(shots,{recursive:true});
+ let queue=Promise.resolve();
+ const server=http.createServer(async(req,res)=>{
+  if(req.url==='/test-rpc'){
+   let raw='';for await(const part of req)raw+=part;
+   const b=JSON.parse(raw);
+   // Every call uses the real SQL permission boundary, including anonymous status.
+   const execute=async()=>{
+    await as(b.user||null,b.user?'authenticated':'anon');const a=b.args||{};
+    if(b.name==='mf_status')return (await db.query('select public.mf_status() data')).rows[0].data;
+    if(b.name==='mf_read')return read(a.p_kind,a.p_family,a.p_id);
+    if(b.name==='mf_write')return write(a.p_action,a.p_family,a.p_id,a.p_data);
+    throw Error('Unknown RPC');
+   };
+   // Avoid shared connection auth state interleaving across browser requests.
+   queue=queue.catch(()=>{}).then(execute);try{const data=await queue;res.setHeader('Content-Type','application/json');res.end(JSON.stringify({data,error:null}));}catch(e){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({data:null,error:{message:e.message}}));}queue=queue.catch(()=>{});return;
+  }
+  const file=path.resolve(root,'.'+decodeURIComponent(new URL(req.url,'http://localhost').pathname).replace(/\/$/,'/index.html'));
+  if(!file.startsWith(root+path.sep)){res.writeHead(403).end();return;}
+  try{const ext=path.extname(file);res.setHeader('Content-Type',ext==='.js'?'application/javascript; charset=utf-8':ext==='.css'?'text/css':ext==='.html'?'text/html; charset=utf-8':ext==='.webmanifest'?'application/manifest+json':'application/octet-stream');res.end(fs.readFileSync(file));}catch{res.writeHead(404).end();}
+ });await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port+'/';
+ const mock=`window.supabase={createClient:()=>({rpc:async(name,args)=>{const r=await fetch('/test-rpc',{method:'POST',body:JSON.stringify({name,args,user:window.TEST_USER})});return r.json()},auth:{getSession:async()=>({data:{session:window.TEST_USER?{user:{id:'00000000-0000-0000-0000-'+String(TEST_USER).padStart(12,'0')}}:null}}),signOut:async()=>{window.TEST_USER=null;return {}},setSession:async()=>({data:{user:{id:'x'}}})},functions:{invoke:async()=>({data:{message:'test'},error:null})}})};`;
+ const browser=await chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{})});
+ try{
+  for(const [width,height,label] of [[390,844,'smartphone'],[820,1180,'tablette-portrait'],[1180,820,'tablette-paysage'],[1440,1000,'ordinateur']]){
+   const context=await browser.newContext({viewport:{width,height}});await context.addInitScript(()=>{window.TEST_USER=3});
+   await context.route('https://cdn.jsdelivr.net/**',r=>r.fulfill({contentType:'application/javascript',body:mock}));
+   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url);await page.getByRole('heading',{name:'Cher Père Noël…'}).waitFor();
+   assert.equal(await page.locator('.family-ornament-photo').isVisible(),true);
+   await page.getByRole('button',{name:'Menu',exact:true}).click();assert.equal(await page.locator('#familySwitch details').getAttribute('open'),null);
+   await page.locator('#familySwitch summary').click();await page.getByRole('button',{name:'Les cousins',exact:true}).click();await page.waitForFunction(()=>document.body.dataset.palette==='berry');
+   assert.equal(await page.locator('.family-ornament-photo').isVisible(),false);assert.equal(await page.locator('.neutral-ornament').count(),1);
+   assert.equal(await page.locator('#adminAccountsTab').isVisible(),false);assert.equal(await page.locator('#activeFamily').textContent(),'Les cousins');
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+   await page.screenshot({path:path.join(shots,'accueil-'+label+'.png'),fullPage:true});
+   await page.getByRole('button',{name:/Thomas/}).filter({has:page.locator('.person-name')}).click();await page.getByRole('heading',{name:'Liste de Thomas'}).waitFor();
+   assert((await page.locator('#screen').textContent()).includes('une personne d’une autre famille'));assert(!(await page.locator('#screen').textContent()).includes('Paul'));
+   const more=page.getByRole('button',{name:'Voir plus'});await more.click();await page.getByRole('button',{name:'Voir moins'}).waitFor();
+   await page.getByRole('button',{name:'Je prends ce cadeau'}).click();await page.getByRole('button',{name:'Annuler ma réservation'}).waitFor();
+   await page.screenshot({path:path.join(shots,'liste-'+label+'.png'),fullPage:true});
+   await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('button',{name:'Mes cadeaux à offrir',exact:true}).click();await page.getByRole('heading',{name:'Mes cadeaux à offrir'}).waitFor();
+   await page.getByRole('button',{name:'Annuler ma réservation',exact:true}).click();await page.getByRole('button',{name:'Confirmer',exact:true}).click();await page.getByText('Aucune réservation à afficher.').waitFor();
+   await page.reload();await page.getByRole('heading',{name:'Cher Père Noël…'}).waitFor();assert.equal(await page.locator('#activeFamily').textContent(),'Les cousins');
+   await page.getByRole('button',{name:'Menu',exact:true}).click();assert.equal(await page.locator('#familySwitch details').getAttribute('open'),null);await page.getByRole('button',{name:'Installer l’application',exact:true}).click();await page.locator('#installDialog[open]').waitFor();await page.getByRole('button',{name:'Compris',exact:true}).click();
+   assert.deepEqual(errors,[]);await context.close();console.log('PASS browser '+label+': switch closed by default, remembered family, theme, privacy, reserve/cancel, description, install, no overflow');
+  }
+  // Exercise owner/admin workflows through the same real SQL functions.
+  const adminContext=await browser.newContext({viewport:{width:1280,height:900}});await adminContext.addInitScript(({second})=>{window.TEST_USER=1;localStorage.setItem('noel-family:00000000-0000-0000-0000-000000000001',second);},{second});await adminContext.route('https://cdn.jsdelivr.net/**',r=>r.fulfill({contentType:'application/javascript',body:mock}));
+  const admin=await adminContext.newPage(),adminErrors=[];admin.on('pageerror',e=>adminErrors.push(e.message));await admin.goto(url);await admin.getByRole('heading',{name:'Cher Père Noël…'}).waitFor();
+  async function nav(name){await admin.getByRole('button',{name:'Menu',exact:true}).click();await admin.getByRole('button',{name,exact:true}).click();}
+  await nav('Gérer ma famille');await admin.getByRole('heading',{name:'Gérer ma famille'}).waitFor();assert.equal(await admin.locator('#familyCode').textContent(),invite);await admin.screenshot({path:path.join(shots,'administration.png'),fullPage:true});
+  await nav('Mes enfants');await admin.locator('#child input').fill('Petit test');await admin.locator('#child button[type=submit]').click();await admin.getByRole('heading',{name:'Liste de Petit test'}).waitFor();
+  await admin.locator('summary').filter({hasText:'Choisir les familles'}).click();assert.equal(await admin.locator('#visibility input:checked').count(),0);await admin.locator('#visibility input').last().check();await admin.locator('#visibility button').click();await admin.getByText('Familles mises à jour.').waitFor();
+  await admin.locator('#gift input[name=title]').fill('Livre test');await admin.locator('#gift button[type=submit]').click();await admin.getByRole('heading',{name:'Livre test'}).waitFor();await admin.getByRole('button',{name:'Modifier',exact:true}).click();await admin.locator('#gift input[name=title]').fill('Livre corrigé');await admin.locator('#gift button[type=submit]').click();await admin.getByRole('heading',{name:'Livre corrigé'}).waitFor();await admin.getByRole('button',{name:'Supprimer',exact:true}).click();await admin.getByRole('button',{name:'Confirmer',exact:true}).click();await admin.getByRole('heading',{name:'Pas d’idée, pas de chocolat !'}).waitFor();
+  await nav('Mes enfants');await admin.locator('article').filter({has:admin.getByRole('heading',{name:/Petit test/})}).getByRole('button',{name:'Supprimer l’enfant',exact:true}).click();await admin.getByRole('button',{name:'Confirmer',exact:true}).click();await admin.getByRole('heading',{name:'Mes enfants'}).waitFor();await admin.getByRole('heading',{name:/Petit test/}).waitFor({state:'hidden'});
+  await nav('Les repas');await admin.locator('#meal input[name=title]').fill('Dîner test');await admin.locator('#meal button[type=submit]').click();await admin.getByRole('heading',{name:'Dîner test'}).waitFor();const meal=admin.locator('article').filter({has:admin.getByRole('heading',{name:'Dîner test'})});await meal.getByRole('button',{name:'Je participe',exact:true}).click();await meal.getByRole('button',{name:'Je ne viens plus',exact:true}).waitFor();await meal.getByRole('button',{name:'Modifier',exact:true}).click();await admin.locator('#meal input[name=title]').fill('Dîner corrigé');await admin.locator('#meal button[type=submit]').click();await admin.getByRole('heading',{name:'Dîner corrigé'}).waitFor();await admin.locator('article').filter({has:admin.getByRole('heading',{name:'Dîner corrigé'})}).getByRole('button',{name:'Supprimer',exact:true}).click();await admin.getByRole('button',{name:'Confirmer',exact:true}).click();await admin.getByRole('heading',{name:'Dîner corrigé'}).waitFor({state:'hidden'});
+  await nav('Secret Santa');await admin.locator('article').filter({has:admin.getByRole('heading',{name:'Organiser le tirage'})}).getByRole('button',{name:'Ajouter',exact:true}).first().click();await admin.locator('article').filter({has:admin.getByRole('heading',{name:'Organiser le tirage'})}).getByRole('button',{name:'Ajouter',exact:true}).first().click();await admin.getByRole('button',{name:'Tirage aléatoire',exact:true}).click();await admin.getByRole('button',{name:'Confirmer',exact:true}).click();await admin.getByRole('button',{name:'Refaire le tirage',exact:true}).waitFor();await admin.getByRole('button',{name:'Attributions manuelles',exact:true}).click();await admin.locator('#manual').waitFor();assert.equal(await admin.locator('#manual select').count(),2);
+  await nav('Mon compte');await admin.getByText('Identifiant de connexion :').waitFor();assert((await admin.locator('#screen').textContent()).includes('Thomas'));assert.deepEqual(adminErrors,[]);await adminContext.close();
+  console.log('PASS admin UI: invitation code, explicit child publication, gift add/edit/delete, child deletion, meals add/edit/delete/attendance, scoped draw/manual and account');
+  await db.exec('reset role');await db.query('insert into public.profiles values($1,$2,$3)',[id(6),'Nouveau','🎅']);await db.query('insert into auth.sessions values($1,$1)',[id(6)]);await as(null,'service_role');await db.query("select public.mf_service('register',$1)",[{user_id:id(6),login:'nouveau.compte'}]);
+  const newcomer=await browser.newContext();await newcomer.addInitScript(()=>{window.TEST_USER=6});await newcomer.route('https://cdn.jsdelivr.net/**',r=>r.fulfill({contentType:'application/javascript',body:mock}));const fresh=await newcomer.newPage();await fresh.goto(url);await fresh.getByRole('heading',{name:'Rejoindre une famille'}).waitFor();await fresh.getByRole('button',{name:'Créer une nouvelle famille',exact:true}).click();await fresh.locator('#createFamily input[name=name]').fill('Autre tribu');await fresh.locator('#createFamily select[name=palette]').selectOption('midnight');await fresh.locator('#createFamily select[name=ornament]').selectOption('ribbon');await fresh.locator('#createFamily input[name=publish]').uncheck();await fresh.locator('#createFamily button[type=submit]').click();await fresh.getByRole('heading',{name:'Gérer ma famille'}).waitFor();assert.equal(await fresh.locator('#familySwitch details').count(),0);await fresh.getByRole('button',{name:'Rejoindre une famille',exact:true}).click();await fresh.locator('#joinFamily input[name=code]').fill(invite);await fresh.locator('#joinFamily button[type=submit]').click();await fresh.getByRole('heading',{name:'Rejoindre Les cousins ?'}).waitFor();await fresh.getByRole('button',{name:'Confirmer',exact:true}).click();await fresh.getByRole('heading',{name:'Cher Père Noël…'}).waitFor();assert.equal(await fresh.locator('#activeFamily').textContent(),'Les cousins');assert.equal(await fresh.locator('#familySwitch details').count(),1);assert.equal(await fresh.locator('#familySwitch details').getAttribute('open'),null);await newcomer.close();
+  console.log('PASS new account: no initial family, create with palette/neutral ball, invitation preview/confirmation, same account and collapsed multi-family selector');
+  // A member of only one family never sees a family selector.
+  const context=await browser.newContext();await context.addInitScript(()=>{window.TEST_USER=2});await context.route('https://cdn.jsdelivr.net/**',r=>r.fulfill({contentType:'application/javascript',body:mock}));const page=await context.newPage();await page.goto(url);await page.getByRole('heading',{name:'Cher Père Noël…'}).waitFor();assert.equal(await page.locator('#familySwitch details').count(),0);await context.close();
+  // Publishing the new frontend before activation keeps the legacy app available.
+  const fallback=await browser.newContext();await fallback.route('https://cdn.jsdelivr.net/**',r=>r.fulfill({contentType:'application/javascript',body:mock}));await fallback.route('**/test-rpc',r=>r.fulfill({json:{data:{enabled:false},error:null}}));await fallback.route('**/legacy.html*',r=>r.fulfill({contentType:'text/html',body:'<h1>Version actuelle</h1>'}));const old=await fallback.newPage();await old.goto(url);await old.getByRole('heading',{name:'Version actuelle'}).waitFor();assert(old.url().includes('/legacy.html'));await fallback.close();
+  console.log('PASS one-family selector hidden and pre-activation legacy fallback');
+ }finally{await browser.close();await new Promise(r=>server.close(r));await db.close();}
+})().catch(e=>{console.error(e);process.exit(1)});
+
