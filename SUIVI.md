@@ -8,18 +8,27 @@ repas et Secret Santa cloisonnés, thèmes neutres et récupération par e-mail 
 Les comptes et codes personnels historiques restent les mêmes ; le prénom historique
 devient l’identifiant stable, distinct du prénom affiché modifiable.
 
-IMPORTANT : la base Supabase de production n’a pas été modifiée par l’assistant.
-La publication du code ne vaut pas activation : l’accueil conserve l’application
-historique dans `legacy.html` tant que `mf_status().enabled` n’est pas vrai.
-Voir `INSTALLATION-MULTIFAMILLES.md` : préparation SQL, déploiement des trois fonctions
-Edge et configuration des e-mails, répétition sur copie, puis activation transactionnelle.
-Ne pas exécuter l’activation avant ces étapes. Ne pas simplement désactiver le drapeau
-après la bascule : les écritures nouvelles doivent être réconciliées pour un retour arrière.
+Activation de production confirmée par Thomas le 28 octobre 2026, après déploiement
+manuel des trois fonctions Edge et exécution des deux scripts SQL. Thomas a explicitement
+choisi de poursuivre sans sauvegarde : le site n’est pas encore annoncé officiellement et
+les listes ne sont pas encore saisies selon lui. Ne pas redemander de sauvegarde ni relancer
+les migrations déjà exécutées.
 
-Tests locaux : fonctions SQL réelles sur PostgreSQL embarqué (PGlite), parcours navigateur
-sur 390/820/1180/1440 pixels avec sessions simulées, fonctions Edge avec Auth et mail simulés.
-Les tests de production, le comportement réel Supabase Auth et la réception des e-mails
-restent à valider sur copie avant activation.
+Vérification assistant en lecture seule : mf_status retourne enabled=true, version=2 ;
+la nouvelle connexion s’affiche à la racine du site sur mobile, sans erreur JavaScript.
+La connexion avec un ancien compte et les données authentifiées restent à vérifier par Thomas.
+
+Pas de domaine d’expédition : les e-mails de récupération sont reportés. Le parcours visible
+oriente vers Thomas pour une récupération manuelle après vérification d’identité. Les formulaires
+d’envoi/vérification e-mail sont masqués par défaut. Pour une future activation des e-mails,
+configurer les secrets Resend et définir window.NOEL_EMAIL_RECOVERY_ENABLED=true dans config.js,
+puis tester la réception réelle avant de l’annoncer. Les fonctions serveur sont conservées.
+La récupération manuelle opérateur utilise supabase/support-reset.mjs avec clé serveur locale,
+jamais un droit de réinitialisation accordé aux administrateurs de famille.
+
+Les tests SQL, Edge et navigateur sont locaux/automatisés ; ne pas les présenter comme des
+vérifications réalisées avec les comptes réels de production. Les tests de réception e-mail
+ne sont pas applicables tant que l’envoi est reporté.
 
 ## Suppression des cadeaux : fonctionnement confirmé
 

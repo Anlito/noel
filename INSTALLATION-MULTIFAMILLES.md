@@ -1,6 +1,15 @@
 # Évolution multi-familles — procédure pour Thomas
 
-Le code est préparé ; la base de production n’a pas été modifiée par l’assistant.
+État au 28 octobre 2026 : Thomas a déployé les fonctions et activé la production.
+L’assistant a vérifié mf_status (enabled=true) et la nouvelle page de connexion.
+Ne pas relancer ces migrations sur le projet actuel. La procédure ci-dessous reste une
+référence de déploiement pour un autre environnement. La sauvegarde a été explicitement
+écartée par Thomas avant la première activation.
+
+La récupération est temporairement manuelle via Thomas : pas de domaine d’expédition.
+Les formulaires e-mail sont masqués par défaut. Pour les activer plus tard, configurer
+Resend et les secrets indiqués ci-dessous, puis ajouter
+`window.NOEL_EMAIL_RECOVERY_ENABLED = true;` dans config.js et tester la réception réelle.
 La suppression des cadeaux est déjà fonctionnelle : aucun ancien script de suppression
 n’est à relancer. Ne pas réexécuter `schema.sql`.
 
