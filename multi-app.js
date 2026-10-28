@@ -154,7 +154,15 @@
   let html=heading('Mes cadeaux à offrir','Toutes tes réservations, toutes familles confondues.');
   html+='<div class="form-actions">'+button('Mes réservations','myOfferings',()=>{sharedOwner=null;return render();})+shares.map(s=>button('Réservations de '+esc(context.members.find(m=>m.id===s.owner_id)?.name||'Membre'),'offering-'+s.owner_id,()=>{sharedOwner=s.owner_id;return render();},'ghost')).join('')+'</div>';
   if(!own)html+='<p class="private-note">Partage en lecture seule : tu vois uniquement les cadeaux des listes auxquelles tu as accès. Les cadeaux pour toi et les listes que tu gères restent cachés.</p>';
-  else html+='<details class="reservation-sharing"><summary>Partager mes réservations</summary><p>Choisis un membre de '+esc(family.name)+'. Il verra uniquement les listes auxquelles il a accès.</p>'+context.members.filter(m=>m.id!==user.id).map(m=>{const enabled=context.shares.some(s=>s.owner_id===user.id&&s.viewer_id===m.id);return '<p>'+esc(m.name)+' '+button(enabled?'Retirer le partage':'Partager','share-'+m.id,async()=>{await write('share',m.id,{enabled:!enabled});await refresh();await render();},'ghost')+'</p>';}).join('')+'</details>';
+  else html+='<details class="reservation-sharing"><summary>Partager mes réservations</summary><p>Choisis un membre de '+esc(family.name)+'. Il verra uniquement les listes auxquelles il a accès.</p><div class="reservation-share-members">'+(context.members.filter(m=>m.id!==user.id).map(m=>{
+   const enabled=context.shares.some(s=>s.owner_id===user.id&&s.viewer_id===m.id);
+   return '<div class="reservation-share-member"><div class="reservation-share-person"><span class="reservation-share-avatar" aria-hidden="true">'+avatar(m.avatar)+'</span><span class="reservation-share-name">'+esc(m.name)+(enabled?'<small>Accès accordé</small>':'')+'</span></div>'+button(enabled?'Retirer le partage':'Partager','share-'+m.id,async()=>{
+    await write('share',m.id,{enabled:!enabled});await refresh();await render();
+    screen.querySelector('.reservation-sharing')?.setAttribute('open','');
+    screen.querySelector('[data-action="share-'+m.id+'"]')?.focus({preventScroll:true});
+   },'ghost')+'</div>';
+  }).join('')||'<p class="muted">Aucun autre membre dans cette famille pour le moment.</p>')+'</div></details>';
+
   const grouped=new Map();for(const g of gifts){if(!grouped.has(g.recipient))grouped.set(g.recipient,[]);grouped.get(g.recipient).push(g);}for(const [recipient,rows] of grouped){html+='<section class="offering-group"><h2>Pour '+esc(recipient)+'</h2>'+rows.map(g=>g.private?'<article><p>Tu n’as plus accès à cette liste.</p>'+button('Annuler ma réservation','cancel-private-'+g.id,async()=>{if(await confirmAction('Annuler cette réservation ?','Le cadeau redeviendra disponible.')){await write('release',g.id);await render();}},'ghost')+'</article>':giftCard(g,own?button('Annuler ma réservation','cancel-'+g.id,async()=>{if(await confirmAction('Annuler cette réservation ?',g.title)){await write('release',g.id);await render();}},'ghost'):'<p class="muted">Réservé</p>')).join('')+'</section>';}
   return html+(gifts.length?'':'<article><p>Aucune réservation à afficher.</p></article>');
  }
