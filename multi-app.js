@@ -21,7 +21,7 @@
  function chrome(){
   document.querySelector('.menu-shell').classList.toggle('hidden',!user);$('headerUser').classList.toggle('hidden',!user);$('familyLinks').classList.toggle('hidden',!user);
   document.querySelector('.family-ornament-photo').classList.toggle('hidden',!user||family?.ornament!=='photo');
-  document.querySelector('.eyebrow').textContent=family?'✦ '+family.name.toLocaleUpperCase('fr-FR')+' · '+(family.year||new Date().getFullYear())+' ✦':'✦ NOËL EN FAMILLE ✦';
+  document.querySelector('.eyebrow').textContent=family?'✦\u00a0'+family.name.toLocaleUpperCase('fr-FR')+' · '+(family.year||new Date().getFullYear())+'\u00a0✦':'✦\u00a0NOËL EN FAMILLE\u00a0✦';
   if(!user){$('activeFamily').textContent='';return;}
   $('who').textContent=boot.account.name;$('myAvatar').innerHTML=avatar(boot.account.avatar);$('accountMenuAvatar').innerHTML=avatar(boot.account.avatar);$('activeFamily').textContent=family?.name||'À toi de choisir ta famille';
   $('adminAccountsTab').classList.toggle('hidden',family?.role!=='admin');

@@ -1,5 +1,14 @@
 # Reprise — Lé Kdo 2 Noyel
 
+## Surtitre mobile
+
+L’espace de la boule était réservé à la fois par padding et par max-width, ce qui
+provoquait un retour à la ligne de l’étoile. Le padding redondant est retiré, les
+espaces autour des étoiles sont insécables et le lettrage mobile est ajusté.
+Vérification visuelle et mesures à 320, 360, 390, 430, 820, 1180 et 1440 pixels :
+« Noël en famille · 2026 » avec ses étoiles reste sur une ligne ; les noms longs
+peuvent revenir à la ligne sans débordement, avec l’étoile finale liée à l’année.
+
 ## Ajustements suivants — codes famille et bandeau
 
 Thomas demande un code famille de quatre chiffres au maximum, le nom de famille dans

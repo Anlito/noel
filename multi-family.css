@@ -10,4 +10,6 @@ body[data-palette=berry] header .hero{background:linear-gradient(145deg,#502139,
 @media(max-width:700px){.neutral-ornament{width:76px;right:12px;top:-30px}.neutral-ornament:before{height:42px}.neutral-ornament span{width:76px;height:76px;font-size:32px}}
 header .topbar .menu-shell{display:flex;align-items:center;gap:12px;min-width:0}header .topbar .menu-shell.hidden{display:none}.family-label{font-size:13px;max-width:25vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#screen label{display:block}@media(max-width:520px){.family-label{max-width:20vw;font-size:11px}header .topbar .menu-shell{gap:8px}}
 
-.eyebrow{overflow-wrap:anywhere;max-width:calc(100% - 180px)}@media(max-width:700px){.eyebrow{max-width:calc(100% - 96px)}}
+.hero .eyebrow{padding-right:0;overflow-wrap:anywhere;max-width:calc(100% - 180px)}@media(max-width:700px){.hero .eyebrow{max-width:calc(100% - 96px)}}
+
+@media(max-width:700px){.hero .eyebrow{font-size:.65rem;letter-spacing:.8px}}
