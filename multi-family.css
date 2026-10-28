@@ -9,3 +9,5 @@ footer{padding:24px;text-align:center;color:var(--green)}footer button{font-size
 body[data-palette=berry] header .hero{background:linear-gradient(145deg,#502139,#893951)}body[data-palette=midnight] header .hero{background:linear-gradient(145deg,#162b49,#304f7b)}#screen h1{font-family:Georgia,serif;font-size:clamp(1.7rem,5vw,2.3rem);color:var(--forest);line-height:1.2;margin:0 0 16px}#screen h2{font-family:Georgia,serif;color:var(--forest)}#screen>h2{margin-top:30px}
 @media(max-width:700px){.neutral-ornament{width:76px;right:12px;top:-30px}.neutral-ornament:before{height:42px}.neutral-ornament span{width:76px;height:76px;font-size:32px}}
 header .topbar .menu-shell{display:flex;align-items:center;gap:12px;min-width:0}header .topbar .menu-shell.hidden{display:none}.family-label{font-size:13px;max-width:25vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#screen label{display:block}@media(max-width:520px){.family-label{max-width:20vw;font-size:11px}header .topbar .menu-shell{gap:8px}}
+
+.eyebrow{overflow-wrap:anywhere;max-width:calc(100% - 180px)}@media(max-width:700px){.eyebrow{max-width:calc(100% - 96px)}}

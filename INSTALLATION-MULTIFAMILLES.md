@@ -13,6 +13,16 @@ Resend et les secrets indiqués ci-dessous, puis ajouter
 La suppression des cadeaux est déjà fonctionnelle : aucun ancien script de suppression
 n’est à relancer. Ne pas réexécuter `schema.sql`.
 
+## Mise à jour des codes et de l’année (base déjà activée)
+
+Exécuter uniquement les migrations incrémentales `2026102803_short_family_codes.sql`,
+puis `2026102804_family_year.sql`. Elles remplacent les anciens codes par quatre chiffres
+uniques et ajoutent l’année modifiable dans l’admin de chaque famille. Les comptes,
+adhésions, listes et réservations sont conservés. Un ancien code long ne permettra plus
+une nouvelle adhésion : récupérer le nouveau dans « Gérer ma famille » après la mise à jour.
+Pour le projet actuel, leur exécution reste à confirmer par Thomas. Ne relancer ni la
+préparation initiale ni la première activation.
+
 ## Fonctionnement
 
 - Un compte global, avec identifiant stable distinct du prénom affiché. Les comptes

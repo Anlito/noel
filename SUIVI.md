@@ -1,5 +1,17 @@
 # Reprise — Lé Kdo 2 Noyel
 
+## Ajustements suivants — codes famille et bandeau
+
+Thomas demande un code famille de quatre chiffres au maximum, le nom de famille dans
+le surtitre du bandeau (retiré à côté du menu) et une année réglable par l’admin de famille.
+Les migrations incrémentales 2026102803_short_family_codes.sql et 2026102804_family_year.sql
+sont préparées et testées. Leur exécution par Thomas reste à confirmer. Ne pas annoncer
+les codes courts et le réglage d’année comme activés avant cette confirmation.
+Le site reste compatible avec la base avant ces deux migrations ; il détecte leurs capacités
+via mf_status. Le nom du bandeau et le retrait du nom à côté du menu sont des changements web.
+Les codes existants sont convertis sans recréer les familles ni modifier les listes/comptes.
+L’année concerne l’affichage de chaque famille ; sa modification n’efface aucun cadeau ni tirage.
+
 ## Évolution multi-familles — 28 octobre 2026
 
 Implémentation préparée avec listes adultes/enfants communes, publication explicite
