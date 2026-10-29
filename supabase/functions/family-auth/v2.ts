@@ -20,18 +20,7 @@ export async function v2Auth(req: Request, body: Record<string, unknown>, admin:
   const email='famille-'+crypto.randomUUID()+'@accounts.noel.invalid';
   const {data,error}=await admin.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{display_name:name,avatar:String(body.avatar||'🎅').slice(0,32)}});
   if(error||!data.user)return reply(400,'Impossible de créer le compte.');
-  try {
-   await rpc('register',{user_id:data.user.id,login});
-  } catch (registerError) {
-   // A registration failure is not necessarily a duplicate login.
-   // Roll back the newly created auth user to avoid orphan accounts.
-   const {error:rollbackError}=await admin.auth.admin.deleteUser(data.user.id);
-   if(rollbackError)console.error('Signup rollback failed',rollbackError.code||'unknown');
-   const err=registerError as {code?:string,message?:string};
-   console.error('Signup registration failed',err.code||'unknown',err.message||'unknown');
-   if(err.code==='23505')return reply(409,'Cet identifiant est déjà utilisé. Choisis-en un autre.');
-   return reply(503,'Impossible de finaliser la création du compte pour le moment. Réessaie plus tard ou contacte l’organisateur.');
-  }
+  try{await rpc('register',{user_id:data.user.id,login});}catch{await admin.auth.admin.deleteUser(data.user.id);return reply(409,'Cet identifiant vient d’être choisi. Essaie un autre identifiant.');}
   return reply(200,'Compte créé. Tu peux maintenant te connecter, puis rejoindre ou créer une famille.');
  }
  if(body.action!=='login')return reply(400,'Action inconnue');

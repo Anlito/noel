@@ -8,7 +8,7 @@ function compile(file,globals,expression){const source=stripTypeScriptTypes(fs.r
  const account={user_id:'00000000-0000-0000-0000-000000000001',recovery_email:'test@example.invalid',verified_at:'2026-10-28'};
  const service={rpc:async(name,args)=>{
   events.push({name,args});if(name==='mf_status')return {data:{enabled:true}};
-  const a=args.p_action;if(a==='limit')return {data:true};if(a==='resolve')return {data:unknown?null:account};if(a==='issue')return {data:{id:'00000000-0000-0000-0000-000000000020'}};
+  const a=args.p_action;if(a==='limit')return {data:true};if(a==='resolve')return {data:unknown==='empty'?{user_id:null,login:null}:unknown?null:account};if(a==='issue')return {data:{id:'00000000-0000-0000-0000-000000000020'}};
   if(a==='consume'){if(consumed)return {error:{message:'used'}};consumed=true;return {data:{user_id:account.user_id}};}return {data:{}};
  },auth:{getUser:async token=>({data:{user:token==='valid'?{id:account.user_id,email:'synthetic@accounts.noel.invalid'}:null},error:token==='valid'?null:{message:'invalid'}}),admin:{updateUserById:async(id,payload)=>{events.push({update:id,payload});return {};},createUser:async()=>({data:{user:{id:account.user_id}}}),deleteUser:async id=>{events.push({delete:id})},getUserById:async()=>({data:{user:{email:'synthetic@accounts.noel.invalid'}}})}}};
  const anon={auth:{signInWithPassword:async payload=>{events.push({signin:payload});return denied?{error:{message:'wrong'}}:{data:{session:{access_token:'jwt',refresh_token:'refresh'}}};},signOut:async()=>({})}};
@@ -27,6 +27,7 @@ function compile(file,globals,expression){const source=stripTypeScriptTypes(fs.r
  response=await v2(new Request('https://example.com'),{action:'signup',name:'thomas.dupont',code:'password'},service,'https://example.supabase.co','anon',{});assert.equal(response.status,409);
  unknown=true;response=await v2(new Request('https://example.com'),{action:'login',name:'unknown',code:'password'},service,'https://example.supabase.co','anon',{});assert.equal(response.status,401);unknown=false;
  // Parse every Edge source, including the dual-mode legacy bridge and admin guard.
+ unknown='empty';response=await v2(new Request('https://example.com'),{action:'signup',name:'nouveau.compte',display_name:'Nouveau',code:'password'},service,'https://example.supabase.co','anon',{});assert.equal(response.status,200);response=await v2(new Request('https://example.com'),{action:'login',name:'unknown',code:'password'},service,'https://example.supabase.co','anon',{});assert.equal(response.status,401);unknown=false;
  for(const file of ['family-auth/index.ts','admin-set-password/index.ts'])compile(file,{v2Auth:v2,createClient:client,Deno:{env:{get:k=>env[k]},serve:()=>{}}});
  console.log('PASS Edge: verified optional email, reauthentication, generic forgot response, one-use confirmation, password validation, session revocation, unchanged legacy identity and TS syntax');
 })().catch(e=>{console.error(e);process.exit(1)});
