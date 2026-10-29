@@ -1,7 +1,7 @@
 -- Options propres a chaque famille. Aucun repas ni tirage supprime.
 begin;
-alter table noel_private.families add column if not exists meals_enabled boolean not null default true;
-alter table noel_private.families add column if not exists santa_enabled boolean not null default true;
+alter table noel_private.families add column if not exists meals_enabled boolean not null default false;
+alter table noel_private.families add column if not exists santa_enabled boolean not null default false;
 alter table noel_private.families alter column meals_enabled set default false;
 alter table noel_private.families alter column santa_enabled set default false;
 create or replace function public.mf_family_options(p_family uuid,p_options jsonb default null)
