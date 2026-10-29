@@ -8,6 +8,7 @@ insert into public.santa_entries values('${id(101)}','${id(1)}',null),('${id(102
 await db.exec(fs.readFileSync(require('path').join(__dirname,'../supabase/migrations/2026102801_multifamily.sql'),'utf8'));console.log('Prepared');
 await db.exec(fs.readFileSync(require('path').join(__dirname,'../supabase/migrations/2026102802_activate_multifamily.sql'),'utf8'));console.log('Activated');
 const oldInvite=(await db.query('select invite_code from noel_private.families')).rows[0].invite_code;await db.exec(fs.readFileSync(require('path').join(__dirname,'../supabase/migrations/2026102803_short_family_codes.sql'),'utf8'));assert.equal((await db.query('select count(*)::int n from noel_private.families where invite_code=$1',[oldInvite])).rows[0].n,0);await db.exec(fs.readFileSync(require('path').join(__dirname,'../supabase/migrations/2026102804_family_year.sql'),'utf8'));
+await db.exec(fs.readFileSync(require('path').join(__dirname,'../supabase/migrations/2026102901_second_hand.sql'),'utf8'));
 async function as(n,role='authenticated'){await db.exec('reset role');await db.query("select set_config('test.uid',$1,false)",[n?id(n):'']);await db.exec('set role '+role)}
 const read=async(kind,f=null,l=null)=>(await db.query('select public.mf_read($1,$2,$3) data',[kind,f,l])).rows[0].data;
 const write=async(action,f=null,l=null,data={})=>(await db.query('select public.mf_write($1,$2,$3,$4) data',[action,f,l,data])).rows[0].data;
