@@ -1,1 +1,1 @@
-{"private":true,"scripts":{"test":"node tests/legacy-migration.cjs && node tests/security.cjs && node tests/edge.cjs && node tests/browser.cjs"},"devDependencies":{"@electric-sql/pglite":"0.5.12","playwright":"1.64.1"}}
+{"private":true,"scripts":{"test":"node tests/legacy-migration.cjs && node tests/security.cjs && node tests/edge.cjs && node tests/family-options.cjs && node tests/browser.cjs"},"devDependencies":{"@electric-sql/pglite":"0.5.12","playwright":"1.64.1"}}
