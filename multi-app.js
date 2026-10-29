@@ -45,12 +45,13 @@
  }
  async function render(){
   const ticket=++epoch;actions={};forms={};screen.setAttribute('aria-busy','true');
-  document.querySelector('.hero').classList.toggle('hidden',!!user&&page!=='home');
+  document.querySelector('.hero').classList.toggle('hidden',page==='family-onboarding'||!!user&&page!=='home');
   try{
    let html;
    if(page==='recover-confirm')html=recoverConfirm();
+   else if(page==='family-onboarding')html=onboardingView();
    else if(!user)html=authView();
-   else if(!family&&!['create','join','account'].includes(page)){page='join';html=joinView();}
+   else if(!family&&!['create','join','account','family-onboarding'].includes(page)){page='join';html=joinView();}
    else if(page==='home')html=homeView();
    else if(page==='join')html=joinView();
    else if(page==='create')html=createView();
@@ -68,9 +69,9 @@
   }catch(e){if(ticket===epoch){screen.innerHTML=heading('Chargement impossible')+'<p class="error">'+esc(e.message)+'</p>';bind();}}
   finally{if(ticket===epoch)screen.removeAttribute('aria-busy');}
  }
- const password=(id,label='Code personnel')=>'<label for="'+id+'">'+label+'</label><div class="password-wrap"><input id="'+id+'" name="'+id+'" type="password" minlength="8" maxlength="128" required autocomplete="'+(signup?'new-password':'current-password')+'"><button type="button" class="eye" data-eye="'+id+'" aria-label="Afficher le code" aria-pressed="false"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>';
+ const password=(id,label='Code personnel')=>'<label for="'+id+'">'+label+'</label><div class="password-wrap"><input id="'+id+'" name="'+id+'" type="password" minlength="8" maxlength="128" required autocomplete="'+(signup||page==='family-onboarding'&&!sessionStorage.getItem('noel-family-account-created')?'new-password':'current-password')+'"><button type="button" class="eye" data-eye="'+id+'" aria-label="Afficher le code" aria-pressed="false"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>';
  function authView(){
-  const creatingFamily=sessionStorage.getItem('noel-create-family')==='true';
+  const creatingFamily=false;
   forms.login=async data=>{
    if(signup&&!/^[a-zA-Z0-9_.-]{3,40}$/.test(String(data.get('login')||'').trim()))throw Error('Identifiant : 3 à 40 lettres sans accent, chiffres, points ou tirets.');
    if(signup&&data.get('secret')!==data.get('repeat'))throw Error('Les deux codes ne correspondent pas.');
@@ -79,10 +80,26 @@
    if(!signup&&!result?.session)throw Error(result?.message||'Connexion impossible. Vérifie ton identifiant et ton code personnel.');
    if(signup&&!result?.message)throw Error('Le serveur n’a pas confirmé la création du compte. Réessaie dans quelques instants.');
    if(signup){if(!creatingFamily)sessionStorage.setItem('noel-join-code',String(data.get('family_code')||'').trim());else sessionStorage.removeItem('noel-join-code');signup=false;await render();status(result.message);return;}
-   const session=await db.auth.setSession(result.session);if(session.error)throw session.error;user=session.data.user;await refresh();page=sessionStorage.getItem('noel-create-family')==='true'?'create':sessionStorage.getItem('noel-join-code')?'join':'home';sessionStorage.removeItem('noel-create-family');await render();
+   const session=await db.auth.setSession(result.session);if(session.error)throw session.error;user=session.data.user;await refresh();page=sessionStorage.getItem('noel-join-code')?'join':'home';sessionStorage.removeItem('noel-create-family');await render();
   };
-  return '<section class="panel account-form"><div class="auth-actions">'+button('Connexion','loginMode',()=>{signup=false;return render();},signup?'ghost':'secondary')+button('Créer un compte','signupMode',()=>{signup=true;return render();},signup?'secondary':'ghost')+'</div><h1>'+(signup?'Créer mon compte':'Connexion')+'</h1>'+(sessionStorage.getItem('noel-create-family')==='true'?'<p class="private-note">Pour créer ta famille, '+(signup?'crée d’abord ton compte, sans code famille. Tu pourras ensuite personnaliser ta famille.':'connecte-toi avec le compte que tu viens de créer. Tu accéderas ensuite à la création de ta famille.')+'</p>':'')+(signup?'<p>Un seul compte pour toutes tes familles.</p>':'')+'<form id="login"><label>Identifiant<input name="login" autocomplete="username" required '+(signup?'minlength="3" maxlength="40"':'maxlength="60"')+' placeholder="'+(signup?'Ex. thomas.dupont':'Ton identifiant')+'"></label>'+(signup?'<label>Prénom affiché<input name="name" required maxlength="60" autocomplete="given-name"></label><p class="subtle">Identifiant unique : 3 à 40 lettres sans accent, chiffres, points ou tirets.</p>':'')+(signup&&!creatingFamily?'<label>Code famille<input name="family_code" required '+(window.NOEL_STATUS?.family_code_digits===4?'minlength="4" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" placeholder="Ex. 1234"':'maxlength="80" placeholder="Le code partagé par ta famille"')+' autocomplete="off"></label>':'')+password('secret','Code personnel (8 caractères minimum)')+(signup?password('repeat','Confirmer le code'):'')+'<button type="submit">'+(signup?'Créer mon compte':'Se connecter')+'</button></form>'+(signup?button(creatingFamily?'J’ai déjà un code famille':'Pas encore de famille ? Créer sa famille','signupFamilyMode',()=>{if(creatingFamily)sessionStorage.removeItem('noel-create-family');else{sessionStorage.setItem('noel-create-family','true');sessionStorage.removeItem('noel-join-code');}return render();},'text-link'):'')+(!signup?'<p>Vous n’avez pas encore de compte ? '+button('Créer votre compte','createAccount',()=>{signup=true;return render();},'text-link')+'</p>'+button('Code personnel oublié ?','forgot',forgotView,'text-link'):'')+'</section>';
+  return '<section class="panel account-form"><div class="auth-actions">'+button('Connexion','loginMode',()=>{signup=false;return render();},signup?'ghost':'secondary')+button('Créer un compte','signupMode',()=>{signup=true;return render();},signup?'secondary':'ghost')+'</div><h1>'+(signup?'Créer mon compte':'Connexion')+'</h1>'+(signup?'<p>Un seul compte pour toutes tes familles.</p>':'')+'<form id="login"><label>Identifiant<input name="login" autocomplete="username" required '+(signup?'minlength="3" maxlength="40"':'maxlength="60"')+' placeholder="'+(signup?'Ex. thomas.dupont':'Ton identifiant')+'"></label>'+(signup?'<label>Prénom affiché<input name="name" required maxlength="60" autocomplete="given-name"></label><p class="subtle">Identifiant unique : 3 à 40 lettres sans accent, chiffres, points ou tirets.</p>':'')+(signup&&!creatingFamily?'<label>Code famille<input name="family_code" required '+(window.NOEL_STATUS?.family_code_digits===4?'minlength="4" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" placeholder="Ex. 1234"':'maxlength="80" placeholder="Le code partagé par ta famille"')+' autocomplete="off"></label>':'')+password('secret','Code personnel (8 caractères minimum)')+(signup?password('repeat','Confirmer le code'):'')+'<button type="submit">'+(signup?'Créer mon compte':'Se connecter')+'</button></form>'+(signup?button('Pas encore de famille ? Créer sa famille','signupFamilyMode',beginFamilyOnboarding,'text-link'):'')+(!signup?'<p>Vous n’avez pas encore de compte ? '+button('Créer votre compte','createAccount',()=>{signup=true;return render();},'text-link')+'</p>'+button('Code personnel oublié ?','forgot',forgotView,'text-link'):'')+'</section>';
  }
+
+ async function beginFamilyOnboarding(){sessionStorage.setItem('noel-create-family','true');sessionStorage.removeItem('noel-join-code');signup=false;await go('family-onboarding');screen.scrollIntoView({block:'start'});}
+ async function leaveFamilyOnboarding(){sessionStorage.removeItem('noel-create-family');sessionStorage.removeItem('noel-family-account-created');if(user){await db.auth.signOut();user=null;boot=null;family=null;context=null;chrome();}signup=false;await go('home');}
+ function onboardingHeader(step){return button('← Revenir à la connexion / inscription','leaveOnboarding',leaveFamilyOnboarding,'ghost onboarding-back')+'<p class="onboarding-step">Étape '+step+' sur 2 · '+(step===1?'Création du compte':'Création de la famille')+'</p>';}
+ async function onboardingAuth(body){const {data,error}=await db.functions.invoke('family-auth',{body});if(error){let message=data?.message;try{message=(await error.context.json()).message||message;}catch{}throw Error(message||'Action impossible pour le moment. Réessaie dans quelques instants.');}return data;}
+ function onboardingView(){
+  if(user)return createView(true);
+  const created=sessionStorage.getItem('noel-family-account-created');
+  forms.onboardingAccount=async data=>{
+   const login=String(data.get('login')||'').trim(),secret=String(data.get('secret')||'');
+   if(!created){if(!/^[a-zA-Z0-9_.-]{3,40}$/.test(login))throw Error('Identifiant : 3 à 40 lettres sans accent, chiffres, points ou tirets.');if(secret!==data.get('repeat'))throw Error('Les deux codes ne correspondent pas.');const result=await onboardingAuth({action:'signup',name:login,display_name:data.get('name'),code:secret});if(!result?.message)throw Error('Le serveur n’a pas confirmé la création du compte.');sessionStorage.setItem('noel-family-account-created',login);}
+   try{const result=await onboardingAuth({action:'login',name:login,code:secret});if(!result?.session)throw Error('Connecte-toi pour poursuivre la création de ta famille.');const session=await db.auth.setSession(result.session);if(session.error)throw session.error;user=session.data.user;await refresh();await render();screen.scrollIntoView({block:'start'});}catch(e){await render();throw e;}
+  };
+  return onboardingHeader(1)+'<section class="panel account-form"><h1>Créer mon compte</h1><p>'+(created?'Ton compte est créé. Connecte-toi pour passer à la création de ta famille.':'Crée ton compte, puis ta famille. Aucun code famille nécessaire.')+'</p><form id="onboardingAccount"><label>Identifiant<input name="login" value="'+esc(created||'')+'" required minlength="3" maxlength="40" autocomplete="username" placeholder="Ex. thomas.dupont"></label>'+(!created?'<label>Prénom affiché<input name="name" required maxlength="60" autocomplete="given-name"></label><p class="subtle">Identifiant : 3 à 40 lettres sans accent, chiffres, points ou tirets.</p>':'')+password('secret','Code personnel (8 caractères minimum)')+(!created?password('repeat','Confirmer le code'):'')+'<button type="submit">'+(created?'Continuer vers ma famille':'Créer mon compte et continuer')+'</button></form></section>';
+ }
+
  async function forgotView(){
   if(!emailRecoveryEnabled){
    screen.innerHTML='<section class="panel account-form"><h1>Code personnel oublié ?</h1><p>Contacte Thomas en lui indiquant ton identifiant. Après vérification de ton identité, il pourra réinitialiser ton code personnel.</p><p>Garde ton compte actuel : pas besoin d’en créer un nouveau.</p>'+button('Retour à la connexion','backLogin',render,'ghost')+'</section>';bind();return;
@@ -124,9 +141,9 @@
   return html;
  }
  function familyFields(){return '<label>Nom de la famille<input name="name" minlength="2" maxlength="60" required></label><div class="form-row"><label>Couleur<select name="palette"><option value="forest">Vert sapin</option><option value="berry">Rouge baie</option><option value="midnight">Bleu nuit</option></select></label><label>Boule de Noël<select name="ornament"><option value="stars">Étoiles dorées</option><option value="ribbon">Ruban rouge</option><option value="snow">Flocons blancs</option></select></label></div>';}
- function createView(){
-  forms.createFamily=async data=>{const r=await write('create-family',null,{...Object.fromEntries(data),publish:data.get('publish')==='true'});await refresh(r.id);await go('family-admin');status('Ta famille est créée. Partage son code avec tes proches.');};
-  return heading('Créer une famille','Tu pourras partager son code avec tes proches.')+'<article class="account-form"><form id="createFamily">'+familyFields()+check('publish','Partager ma liste personnelle dans cette famille',true,'true')+'<button type="submit">Créer ma famille</button></form><p>Les listes de tes enfants restent privées jusqu’à ce que tu choisisses leurs familles.</p></article>';
+ function createView(onboarding=false){
+  forms.createFamily=async data=>{const r=await write('create-family',null,{...Object.fromEntries(data),publish:data.get('publish')==='true'});sessionStorage.removeItem('noel-create-family');sessionStorage.removeItem('noel-family-account-created');await refresh(r.id);await go('family-admin');status('Ta famille est créée. Partage son code avec tes proches.');};
+  return (onboarding?onboardingHeader(2)+'<h1>Créer une famille</h1><p>Ton compte est prêt. Personnalise maintenant ta famille.</p>':heading('Créer une famille','Tu pourras partager son code avec tes proches.'))+'<article class="account-form"><form id="createFamily">'+familyFields()+check('publish','Partager ma liste personnelle dans cette famille',true,'true')+'<button type="submit">Créer ma famille</button></form><p>Les listes de tes enfants restent privées jusqu’à ce que tu choisisses leurs familles.</p></article>';
  }
  function joinView(){
   const shortCodes=window.NOEL_STATUS?.family_code_digits===4;
@@ -202,8 +219,8 @@
  document.addEventListener('click',e=>{if(!e.target.closest('.header-user'))closeProfile();});
  $('changeAvatar').textContent='Mon compte';$('changeAvatar').onclick=()=>go('account');
  $('logout').onclick=()=>busy($('logout'),async()=>{await db.auth.signOut();user=null;boot=null;family=null;context=null;sharedOwner=null;closeMenu();closeProfile();chrome();await go('home');});
- document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>busy(b,async()=>{sharedOwner=null;if(!user&&b.dataset.tab==='create'){sessionStorage.setItem('noel-create-family','true');sessionStorage.removeItem('noel-join-code');signup=true;await go('create');screen.scrollIntoView({block:'start'});return;}return go(b.dataset.tab);}));
+ document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>busy(b,async()=>{sharedOwner=null;if(!user&&b.dataset.tab==='create'){return beginFamilyOnboarding();}return go(b.dataset.tab);}));
  window.addEventListener('resize',()=>screen.querySelectorAll('.description-toggle').forEach(b=>{if(b.getAttribute('aria-expanded')!=='true')b.classList.toggle('hidden',b.previousElementSibling.scrollHeight<=b.previousElementSibling.clientHeight+1);}));
- async function start(){const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(user)await refresh();else chrome();if(recovery.has('account'))page='recover-confirm';await render();const install=document.createElement('script');install.src='install.js?v=2';document.body.append(install);const photo=document.querySelector('.family-ornament-photo');if(photo&&!photo.classList.contains('hidden')){await photo.decode().catch(()=>{});photo.classList.add('is-arriving');}}
+ async function start(){const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(user)await refresh();else chrome();if(sessionStorage.getItem('noel-create-family')==='true')page='family-onboarding';if(recovery.has('account'))page='recover-confirm';await render();const install=document.createElement('script');install.src='install.js?v=2';document.body.append(install);const photo=document.querySelector('.family-ornament-photo');if(photo&&!photo.classList.contains('hidden')){await photo.decode().catch(()=>{});photo.classList.add('is-arriving');}}
  start().catch(e=>status(e.message,true));
 })();
