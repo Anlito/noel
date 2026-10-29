@@ -14,7 +14,7 @@ export async function v2Auth(req: Request, body: Record<string, unknown>, admin:
  const account=await rpc('resolve',{login});
  if(body.action==='signup'){
   if(!/^[a-zA-Z0-9_.-]{3,40}$/.test(login))return reply(400,'Identifiant : 3 à 40 lettres sans accent, chiffres, points ou tirets.');
-  if(account)return reply(409,'Cet identifiant est déjà utilisé.');
+  if(account?.user_id)return reply(409,'Cet identifiant est déjà utilisé.');
   const name=String(body.display_name||login).trim();
   if(name.length<1||name.length>60)return reply(400,'Prénom invalide.');
   const email='famille-'+crypto.randomUUID()+'@accounts.noel.invalid';
@@ -35,7 +35,7 @@ export async function v2Auth(req: Request, body: Record<string, unknown>, admin:
   return reply(200,'Compte créé. Tu peux maintenant te connecter, puis rejoindre ou créer une famille.');
  }
  if(body.action!=='login')return reply(400,'Action inconnue');
- if(!account)return reply(401,'Identifiant ou code personnel incorrect.');
+ if(!account?.user_id)return reply(401,'Identifiant ou code personnel incorrect.');
  const {data:u}=await admin.auth.admin.getUserById(account.user_id);
  if(!u.user?.email)return reply(401,'Identifiant ou code personnel incorrect.');
  const client=createClient(url,anon,{auth:{persistSession:false,autoRefreshToken:false}});
