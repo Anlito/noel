@@ -70,3 +70,8 @@ button.action-remove:hover{background:#f3dade}
 #screen .password-wrap button.eye{position:absolute;top:50%;right:4px;transform:translateY(-50%);display:grid;place-items:center;width:44px;height:44px;min-height:44px;min-width:44px;padding:0;margin:0;border:0;background:transparent;color:var(--pine);line-height:1}
 .password-wrap button.eye svg{display:block}
 .password-wrap button.eye:focus-visible{outline:2px solid var(--pine);outline-offset:-3px}
+#giftComposer>summary{display:flex;align-items:center;justify-content:space-between;gap:16px;list-style:none}
+#giftComposer>summary::-webkit-details-marker{display:none}
+#giftComposer>summary::marker{content:''}
+#giftComposer>summary::after{content:'+';display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;font-family:system-ui,sans-serif;font-size:1.6rem;font-weight:400;line-height:1}
+#giftComposer[open]>summary::after{content:'−'}
