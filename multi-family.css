@@ -92,3 +92,8 @@ button.action-remove:hover{background:#f3dade}
 .purchase-summary{background:#edf4ef;border:1px solid #c3d8ca;border-radius:14px;padding:16px 20px;margin:22px 0}.purchase-summary strong{font-size:1.1rem}.purchase-summary p{margin:5px 0 0;color:#537064}.gift-card.bought{border-color:#74a68a;background:#fcfffc}.purchase-row{width:100%;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
 #screen label.purchase-check{display:flex;align-items:center;gap:12px;margin:0;min-height:48px;cursor:pointer;font-weight:600}#screen .purchase-check input{width:22px;height:22px;accent-color:#245a49;margin:0;flex:0 0 22px}.purchase-row button{margin:0;min-height:48px}.purchase-state{font-weight:600;color:#245a49;margin:0;min-height:48px;align-content:center}
 @media(max-width:520px){.purchase-row{display:grid;grid-template-columns:1fr}.purchase-row button{width:100%}}
+
+.gift-card .gift-actions .gift-reservation-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;flex-basis:100%;width:100%;margin-top:12px}
+.gift-reservation-actions .tag,.gift-reservation-actions button{margin:0}
+@media(max-width:520px){.gift-card .gift-actions .gift-reservation-actions{flex-direction:column;align-items:stretch}.gift-reservation-actions button{width:100%}}
+.list-export button{min-height:48px;white-space:normal}

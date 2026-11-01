@@ -1,0 +1,30 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+(async()=>{
+ const {db,as,read,write}=await require('./fixture.cjs')();
+ await as(null,'postgres');
+ const sql=fs.readFileSync(path.join(__dirname,'../supabase/migrations/2026110104_list_export.sql'),'utf8');
+ await db.exec(sql);await db.exec(sql);await as(1);
+ const boot=await read('bootstrap'),f=boot.families[0].id,personal=boot.lists.find(l=>!l.child_id).id;
+ const exportRows=async family=>(await db.query('select public.mf_export_lists($1) data',[family])).rows[0].data;
+ await write('gift-save',f,personal,{title:'Jeu; été "spécial"',description:'Une ligne\nDeux lignes',url:'https://example.com',second_hand:true});
+ const child=await write('child-create',f,null,{name:'Liste vide'});
+ assert(!(await exportRows(f)).some(r=>r.list_id===child.id));
+ await write('publish',f,child.id,{families:[f]});
+ const rows=await exportRows(f);
+ assert(rows.some(r=>r.list_id===child.id&&r.gift_id===null));
+ assert(rows.some(r=>r.title==='Jeu; été "spécial"'&&r.second_hand===true));
+ for(const row of rows)for(const key of ['reserved','reserver','purchased','password','login','invite_code'])assert(!(key in row));
+ await as(2);await assert.rejects(()=>exportRows(f),/Administration/);
+ await as(3);const other=(await write('create-family',null,null,{name:'Autre famille',palette:'forest',ornament:'stars',publish:true})).id;
+ await assert.rejects(()=>exportRows(f),/Administration/);
+ assert((await exportRows(other)).every(r=>r.family==='Autre famille'));
+ await as(null,'anon');await assert.rejects(()=>exportRows(f),/permission denied/);await db.close();
+ const source=fs.readFileSync(path.join(__dirname,'../multi-app.js'),'utf8');
+ const fn=source.slice(source.indexOf(' function listCsv('),source.indexOf(' async function exportLists('));
+ const context=vm.createContext({});vm.runInContext(fn+';this.csv=listCsv;',context);
+ const csv=context.csv([{family:'Été',list_name:'=1+1',title:'Jeu; "cadeau"',description:'Ligne 1\nLigne 2',favorite:true,second_hand:false}]);
+ assert(csv.startsWith('\ufeff'));assert(csv.includes('"Jeu; ""cadeau"""'));assert(csv.includes('"Ligne 1\nLigne 2"'));
+ assert(csv.includes("\"'=1+1\""));assert(csv.endsWith('"Oui";"Non"\r\n'));
+ console.log('PASS list export: family admin scope, empty/unpublished lists, no reservations, UTF8 CSV escaping and formula neutralization');
+})().catch(e=>{console.error(e);process.exit(1)});
+
