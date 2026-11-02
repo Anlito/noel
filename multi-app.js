@@ -17,7 +17,7 @@
  async function busy(element,fn){if(element)element.disabled=true;try{await fn()}catch(e){status(e.message||'Action impossible.',true);$('status').scrollIntoView({block:'nearest'});}finally{if(element)element.disabled=false;}}
  function confirmAction(title,text){return new Promise(resolve=>{const d=$('confirmDialog');$('confirmTitle').textContent=title;$('confirmText').textContent=text;d.returnValue='cancel';d.addEventListener('close',()=>resolve(d.returnValue==='yes'),{once:true});d.showModal();});}
  function closeMenu(){$('navigationDialog').close();$('menuToggle').setAttribute('aria-expanded','false');document.body.classList.remove('navigation-open');}
- function closeProfile(){$('profileMenu').classList.add('hidden');$('profileToggle').setAttribute('aria-expanded','false');}
+ function closeProfile(){const details=$('familySwitch').querySelector('details');if(details)details.open=false;$('profileMenu').classList.add('hidden');$('profileToggle').setAttribute('aria-expanded','false');}
  async function refresh(preferred){boot=await read('bootstrap');const saved=localStorage.getItem('noel-family:'+user.id);family=boot.families.find(f=>f.id===(preferred||family?.id||saved))||boot.families[0]||null;if(family)localStorage.setItem('noel-family:'+user.id,family.id);context=family?await read('family'):null;if(family&&window.NOEL_STATUS?.family_options)family.options=await rpc('mf_family_options',{p_family:family.id,p_options:null});if(family&&window.NOEL_STATUS?.family_year)family.year=await rpc('mf_family_year',{p_family:family.id,p_year:null});chrome();}
  function chrome(){
   document.querySelector('.menu-shell').classList.toggle('hidden',!user);$('headerUser').classList.toggle('hidden',!user);$('familyLinks').classList.remove('hidden');$('familyLinks').querySelector('[data-tab=join]').classList.toggle('hidden',!user);$('familyLinkSeparator').classList.toggle('hidden',!user);
@@ -27,8 +27,9 @@
   $('who').textContent=boot.account.name;$('myAvatar').innerHTML=avatar(boot.account.avatar);$('activeFamily').textContent=family?.name||'À toi de choisir ta famille';
   for(const key of ['meals','santa'])document.querySelector('#mainNav [data-tab='+key+']').classList.toggle('hidden',!family||family.options?.[key]===false);
   $('adminAccountsTab').classList.toggle('hidden',family?.role!=='admin');
-  $('familySwitch').innerHTML=boot.families.length>1?'<details><summary>Changer de famille · '+esc(family.name)+'</summary>'+boot.families.map(f=>'<button class="'+(f.id===family.id?'family-active':'ghost')+'" data-family="'+f.id+'">'+esc(f.name)+'</button>').join('')+'</details>':family?'<p class="family-title">'+esc(family.name)+'</p>':'';
-  $('familySwitch').querySelectorAll('[data-family]').forEach(b=>b.onclick=()=>busy(b,async()=>{closeMenu();await refresh(b.dataset.family);await go('home');}));
+  $('changeAvatar').innerHTML='<span class="profile-account-avatar" aria-hidden="true">'+avatar(boot.account.avatar)+'</span><span>Mon compte</span>';
+  $('familySwitch').innerHTML=family?'<div class="active-family-card"><small>Famille active</small><strong>'+esc(family.name)+'</strong></div>'+(boot.families.length>1?'<details class="profile-family-details"><summary>Changer de famille</summary>'+boot.families.map(f=>'<button class="family-choice '+(f.id===family.id?'selected':'')+'" data-family="'+f.id+'" '+(f.id===family.id?'aria-current="true"':'')+'><span class="choice-name"><span class="family-dot family-dot-'+(['forest','berry','midnight'].includes(f.palette)?f.palette:'forest')+'" aria-hidden="true"></span>'+esc(f.name)+'</span><span class="selected-mark" aria-hidden="true">'+(f.id===family.id?'✓':'')+'</span></button>').join('')+'</details>':''):'';
+  $('familySwitch').querySelectorAll('[data-family]').forEach(b=>b.onclick=()=>busy(b,async()=>{const id=b.dataset.family;closeProfile();sharedOwner=null;await refresh(id);await go('home');$('profileToggle').focus({preventScroll:true});}));
   document.body.dataset.palette=family?.palette||'forest';
   const hero=document.querySelector('.hero');hero.querySelector('.neutral-ornament')?.remove();
   hero.querySelector('.family-ornament-photo').classList.toggle('hidden',family?.ornament!=='photo');
@@ -233,6 +234,7 @@
  $('menuToggle').onclick=()=>{closeProfile();$('navigationDialog').showModal();$('menuToggle').setAttribute('aria-expanded','true');document.body.classList.add('navigation-open');};$('closeNavigation').onclick=closeMenu;
  $('navigationDialog').addEventListener('close',()=>{$('menuToggle').setAttribute('aria-expanded','false');document.body.classList.remove('navigation-open');});
  $('profileToggle').onclick=()=>{const open=$('profileMenu').classList.contains('hidden');$('profileMenu').classList.toggle('hidden',!open);$('profileToggle').setAttribute('aria-expanded',open);};
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('profileMenu').classList.contains('hidden')){closeProfile();$('profileToggle').focus({preventScroll:true});}});
  document.addEventListener('click',e=>{if(!e.target.closest('.header-user'))closeProfile();});
  $('changeAvatar').textContent='Mon compte';$('changeAvatar').onclick=()=>go('account');
  $('logout').onclick=()=>busy($('logout'),async()=>{await db.auth.signOut();user=null;boot=null;family=null;context=null;sharedOwner=null;closeMenu();closeProfile();chrome();await go('home');});
