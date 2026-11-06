@@ -1,0 +1,37 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+(async()=>{
+ const {db,id,as,read,write}=await require('./fixture.cjs')();
+ await as(null,'postgres');
+ await db.exec(fs.readFileSync(path.join(__dirname,'../supabase/migrations/2026110101_child_reservations.sql'),'utf8'));
+ const sql=fs.readFileSync(path.join(__dirname,'../supabase/migrations/2026110601_reserver_privacy.sql'),'utf8');
+ await db.exec(sql);await db.exec(sql);
+ await as(1);const boot=await read('bootstrap'),f=boot.families[0].id,personal=boot.lists.find(l=>!l.child_id).id,child=boot.lists.find(l=>l.child_id).id;
+ const reveal=async(family,gift)=>(await db.query('select public.mf_reserver($1,$2) data',[family,gift])).rows[0].data;
+ await assert.rejects(()=>reveal(f,id(20)),/propre liste/);
+ assert(!('reserved' in (await read('list',f,personal)).gifts[0]));
+ await as(2);const paulList=(await read('bootstrap')).lists.find(l=>!l.child_id).id;
+ await write('gift-save',f,paulList,{title:'Cadeau Paul'});
+ const gift=(await read('list',f,paulList)).gifts[0].id;
+ await as(3);await write('reserve',f,gift);await write('share',f,id(1),{enabled:true});
+ assert(!('reserver' in (await read('list',f,paulList)).gifts[0]));
+ await assert.rejects(()=>reveal(f,gift),/Administration/);
+ await as(1);assert.equal((await reveal(f,gift)).name,'Jean');
+ assert(!('reserver' in (await read('list',f,paulList)).gifts[0]));
+ assert(!JSON.stringify(await read('offerings',f,id(3))).includes('Jean'));
+ await write('member',f,id(2),{role:'admin',organizer:false});
+ await as(2);await assert.rejects(()=>reveal(f,gift),/propre liste/);
+ await as(1);await write('publish',f,child,{families:[f]});
+ await write('gift-save',f,child,{title:'Cadeau enfant'});
+ const kidGift=(await read('list',f,child)).gifts[0].id;
+ await as(2);await write('reserve',f,kidGift);
+ await as(1);assert.equal((await reveal(f,kidGift)).name,'Paul');
+ const other=(await write('create-family',null,null,{name:'Autre famille',palette:'forest',ornament:'stars',publish:false})).id;
+ await write('publish',f,child,{families:[f,other]});
+ assert.equal((await reveal(other,kidGift)).name,'une personne d’une autre famille');
+ await assert.rejects(()=>reveal(other,gift),/inaccessible/);
+ await as(3);await write('release',f,gift);
+ await as(1);assert.equal((await reveal(f,gift)).reserved,false);
+ await as(null,'anon');await assert.rejects(()=>reveal(f,kidGift),/permission denied/);
+ await db.close();console.log('PASS reserver privacy: no identity in normal/shared reads, admin-only reveal, own-list protection, external anonymity and stale reservation');
+})().catch(e=>{console.error(e);process.exit(1)});
+
